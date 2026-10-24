@@ -1,0 +1,1577 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>FIS111 Control 4</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&family=STIX+Two+Text:ital,wght@0,400;0,600;1,400;1,600&display=swap">
+<style>
+/* Layout: a single "video player" — 1280x720 stage scaled to fit, captions + chapters below. Single deliberate dark look. */
+:root{
+  --bg:#060608; --bg2:#0d0d12; --bg3:#15151c; --grid:rgba(190,185,255,.05);
+  --line:#7d7b88; --line2:#44434d; --ink:#eeedf3; --dim:#9a98a6; --faint:#5e5c68;
+  --acc:#b48cff; --acc-soft:rgba(180,140,255,.12);
+  --peso:#57d4c2; --normal:#eeedf3; --roce:#ff6b7d; --ten:#b48cff; --ela:#f4b55c; --acel:#ff8fd0; --vel:#8fc7ff;
+  --K:#b48cff; --Ug:#57d4c2; --Ue:#f4b55c; --mom:#f4b55c; --imp:#ff8fd0; --A:#8fc7ff; --B:#ff6b7d; --C:#57d4c2;
+  --f-disp:'Archivo',ui-sans-serif,system-ui,sans-serif;
+  --f-body:'Figtree',ui-sans-serif,system-ui,sans-serif;
+  --f-math:'STIX Two Text','Cambria Math',Cambria,Georgia,serif;
+  --f-mono:'JetBrains Mono',ui-monospace,Menlo,Consolas,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--ink)}
+body{font-family:var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+.top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.top .kick{font-family:var(--f-mono);font-size:12px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.top h1{font-family:var(--f-disp);font-stretch:112%;font-weight:800;font-size:clamp(22px,3.2vw,32px);letter-spacing:-.01em;margin:4px 0 0;text-wrap:balance}
+.top p{margin:0;color:var(--dim);font-size:14px;font-family:var(--f-mono)}
+
+#player{background:#000;border-radius:14px;overflow:hidden;border:1px solid #1c1b23;position:relative}
+#player:fullscreen{border-radius:0;border:0;display:flex;flex-direction:column;justify-content:center;background:#000}
+#frame{position:relative;width:100%;aspect-ratio:16/9;overflow:hidden;background:var(--bg);margin:0 auto;max-width:100%}
+#stage{position:absolute;left:0;top:0;width:1280px;height:720px;transform-origin:0 0;overflow:hidden;
+  background:
+    radial-gradient(ellipse at 50% 45%,rgba(0,0,0,0) 35%,rgba(0,0,0,.78) 100%),
+    linear-gradient(var(--grid) 2px,transparent 2px) 0 0/80px 80px,
+    linear-gradient(90deg,var(--grid) 2px,transparent 2px) 0 0/80px 80px,
+    var(--bg);
+  animation:drift 90s linear infinite}
+@keyframes drift{to{background-position:0 0,0 80px,80px 0,0 0}}
+.mark{position:absolute;right:26px;bottom:20px;font-family:var(--f-mono);font-size:15px;letter-spacing:.12em;color:var(--faint);z-index:5}
+
+#big{position:absolute;inset:0;margin:auto;width:116px;height:116px;border-radius:50%;border:2px solid var(--acc);background:rgba(10,8,16,.75);color:var(--ink);cursor:pointer;display:grid;place-items:center;z-index:6;box-shadow:0 0 60px rgba(180,140,255,.35);transition:transform .2s}
+#big:hover{transform:scale(1.06)}
+#big svg{width:44px;height:44px;margin-left:6px}
+#resume{position:absolute;left:50%;bottom:18px;translate:-50% 0;z-index:7;display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+#resume button{font:600 14px var(--f-body);color:var(--ink);background:rgba(20,18,28,.92);border:1px solid var(--acc);border-radius:999px;padding:8px 14px;cursor:pointer}
+#resume button+button{border-color:#2d2c36;color:var(--dim)}
+
+#ctl{display:flex;flex-direction:column;gap:6px;padding:10px 12px 10px;background:#000}
+#bar{position:relative;height:20px;cursor:pointer;touch-action:none;outline:none}
+#bar .tr{position:absolute;left:0;right:0;top:8px;height:4px;background:#2a2932;border-radius:2px}
+#bar .fill{position:absolute;left:0;top:8px;height:4px;background:var(--acc);border-radius:2px;width:0}
+#bar .knob{position:absolute;top:4px;width:12px;height:12px;border-radius:50%;background:#fff;translate:-50% 0;left:0;box-shadow:0 0 0 3px rgba(180,140,255,.35)}
+#bar .tick{position:absolute;top:8px;width:3px;height:4px;background:#000;translate:-50% 0}
+#bar:focus-visible .tr{outline:2px solid var(--acc);outline-offset:4px}
+#tip{position:absolute;bottom:22px;translate:-50% 0;background:#16151d;border:1px solid #2d2c36;color:var(--ink);font:500 12px var(--f-body);padding:5px 9px;border-radius:7px;white-space:nowrap;pointer-events:none}
+.row{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
+button.ic{background:none;border:0;color:var(--ink);width:40px;height:36px;border-radius:8px;display:grid;place-items:center;cursor:pointer;padding:0}
+button.ic svg{width:22px;height:22px}
+button.ic:hover{background:#1a1a21}
+button:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+#time{font-family:var(--f-mono);font-size:13px;color:var(--dim);margin:0 8px;font-variant-numeric:tabular-nums;white-space:nowrap}
+#chName{font-size:13px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 120px}
+button.tx{font:600 13px var(--f-mono);color:var(--ink);background:#15151b;border:1px solid #2a2930;border-radius:8px;padding:7px 10px;cursor:pointer;white-space:nowrap}
+button.tx[aria-pressed="true"]{border-color:var(--acc);color:var(--acc)}
+button.tx:disabled{opacity:.45;cursor:not-allowed}
+#cap{padding:16px 20px 18px;background:var(--bg2);border-top:1px solid #1c1b23;min-height:118px}
+#cap .ct{font-family:var(--f-mono);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc);margin-bottom:6px}
+#cap .cx{font-size:clamp(16px,2.1vw,20px);line-height:1.55;color:var(--ink);max-width:78ch;text-wrap:pretty}
+#player:fullscreen #cap{min-height:0}
+
+section h3{font-family:var(--f-disp);font-stretch:110%;font-weight:800;font-size:20px;margin:6px 0 10px}
+.chs{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:10px}
+.chs button{text-align:left;background:var(--bg2);border:1px solid #1d1c25;border-radius:10px;padding:12px 14px;color:var(--ink);cursor:pointer;display:flex;gap:12px;align-items:flex-start;min-width:0}
+.chs button:hover{border-color:#34333e}
+.chs button.on{border-color:var(--acc);background:#120f1b}
+.chs .n{font-family:var(--f-mono);color:var(--faint);font-size:13px;padding-top:2px;font-variant-numeric:tabular-nums}
+.chs .t{font-weight:600;font-size:15px;display:block}
+.chs .s{display:block;color:var(--dim);font-size:13px;margin-top:2px}
+.keys{color:var(--dim);font-size:13px;margin:0}
+kbd,.kb{font-family:var(--f-mono);font-size:.85em;border:1px solid #34333e;border-bottom-width:2px;border-radius:5px;padding:1px 6px;background:#14141a;color:var(--ink)}
+
+.vc{position:relative;display:inline-block}
+.vc::before{content:'';position:absolute;left:12%;right:2%;top:-.06em;height:.08em;background:currentColor;border-radius:1px}
+.vc::after{content:'';position:absolute;right:-.06em;top:-.2em;border-left:.24em solid currentColor;border-top:.14em solid transparent;border-bottom:.14em solid transparent}
+.tagx{position:absolute;font-family:var(--f-mono);font-size:16px;letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+.art .ttl{font-family:var(--f-mono);font-size:18px;letter-spacing:.14em;fill:var(--dim)}
+[hidden]{display:none!important}
+/* ===== stage content ===== */
+.scene{position:absolute;inset:0;transition:opacity .75s ease,transform 1s cubic-bezier(.2,.8,.2,1),filter .75s ease}
+.scene.pre{opacity:0;transform:scale(1.04) translateY(10px);filter:blur(10px)}
+.scene.out{opacity:0;transform:scale(.97);filter:blur(8px);pointer-events:none}
+.scene svg.art{position:absolute;left:0;top:0;width:1280px;height:720px;overflow:visible}
+.hdr{position:absolute;left:64px;top:42px;right:64px}
+.hdr .tag{font-family:var(--f-mono);font-size:17px;letter-spacing:.14em;text-transform:uppercase;color:var(--acc)}
+.hdr h2{font-family:var(--f-disp);font-stretch:115%;font-weight:800;font-size:42px;margin:6px 0 0;letter-spacing:-.01em;color:var(--ink);line-height:1.1}
+
+.eq{position:absolute;font-family:var(--f-math);font-size:36px;color:var(--ink);white-space:nowrap;line-height:1.25}
+.eq i{font-style:italic}
+.eq .w{font-family:var(--f-body);font-style:normal;font-size:.68em;color:var(--dim);letter-spacing:.01em}
+.eq sub{font-size:.6em;vertical-align:-.3em;line-height:0;font-style:normal}
+.eq sup{font-size:.6em;vertical-align:.62em;line-height:0}
+.eq.s{font-size:30px}.eq.xs{font-size:25px}.eq.l{font-size:50px}.eq.xl{font-size:70px}
+.eq.dim{color:var(--dim)}.eq.acc{color:var(--acc)}
+.eq.box{border:2px solid var(--acc);border-radius:10px;padding:6px 18px;background:rgba(180,140,255,.07);box-shadow:0 0 40px rgba(180,140,255,.16)}
+.c{translate:-50% 0}
+.fr{display:inline-flex;flex-direction:column;align-items:center;vertical-align:middle;margin:0 .12em;line-height:1.08;font-size:.9em}
+.fr>span:first-child{border-bottom:.055em solid currentColor;padding:0 .22em .05em}
+.fr>span:last-child{padding:.05em .22em 0}
+.rt{white-space:nowrap}
+.rt>.rad{border-top:.055em solid currentColor;padding:.04em .12em 0;margin-left:.03em;display:inline-block;line-height:1.15}
+.unit{font-style:normal;color:var(--dim)}
+.eq .hl,.eq.hl{color:var(--acc);text-shadow:0 0 24px rgba(180,140,255,.7)}
+.nt{position:absolute;font-family:var(--f-body);font-size:26px;line-height:1.38;color:var(--dim);white-space:normal}
+.nt b{color:var(--ink);font-weight:600}
+.nt.acc{color:var(--acc)}
+.nt i{font-family:var(--f-math)}
+.pill.nc{text-transform:none;letter-spacing:.02em;font-size:18px}
+.pill{position:absolute;font-family:var(--f-mono);font-size:17px;letter-spacing:.1em;text-transform:uppercase;padding:7px 15px;border-radius:999px;border:1.5px solid currentColor;white-space:nowrap}
+.panel{position:absolute;border:1.5px solid var(--line2);border-radius:14px;background:rgba(16,16,22,.72)}
+.node{position:absolute;box-sizing:border-box;border:2px solid var(--line);border-radius:12px;padding:14px 18px;background:rgba(12,12,18,.9);font-family:var(--f-disp);font-stretch:108%;font-weight:700;font-size:27px;color:var(--ink);line-height:1.1}
+.node small{display:block;font-family:var(--f-math);font-weight:400;font-size:22px;color:var(--dim);margin-top:6px}
+.node small i{font-style:italic}.node small sub{font-size:.65em}
+.node.acc{border-color:var(--acc);box-shadow:0 0 30px rgba(180,140,255,.18)}
+.li{position:absolute;display:flex;gap:18px;align-items:baseline;font-size:28px;line-height:1.35;color:var(--dim);font-family:var(--f-body)}
+.li .num{font-family:var(--f-mono);font-size:19px;color:var(--acc);border:1.5px solid var(--acc);border-radius:50%;width:38px;height:38px;display:grid;place-items:center;flex:none;transform:translateY(-3px)}
+.li b{color:var(--ink);font-weight:600}
+.li i{font-family:var(--f-math)}
+.hk{position:absolute;font-family:var(--f-mono);font-size:18px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.hero{position:absolute;font-family:var(--f-disp);font-weight:900;font-stretch:112%;font-size:128px;letter-spacing:-.02em;line-height:1;color:var(--ink)}
+.hsub{position:absolute;font-family:var(--f-body);font-size:31px;color:var(--dim)}
+.card .cnum{position:absolute;left:140px;top:150px;font-family:var(--f-disp);font-weight:900;font-stretch:125%;font-size:150px;line-height:1;color:transparent;-webkit-text-stroke:2px var(--line)}
+.card .csub{position:absolute;left:146px;top:338px;font-family:var(--f-mono);font-size:20px;letter-spacing:.16em;text-transform:uppercase;color:var(--acc)}
+.card .cttl{position:absolute;left:140px;top:372px;font-family:var(--f-disp);font-weight:800;font-stretch:116%;font-size:82px;letter-spacing:-.015em;line-height:1.02;color:var(--ink);max-width:1000px}
+
+/* svg drawing */
+.art .ln{stroke:var(--line);stroke-width:3;fill:none;stroke-linecap:round;stroke-linejoin:round}
+.art .ln2{stroke:var(--line2);stroke-width:2.2;fill:none}
+.art .dashl{stroke-dasharray:7 9}
+.art .obj{fill:#111117;stroke:#a19faa;stroke-width:3}
+.art .spr{fill:none;stroke:#cfcdd8;stroke-width:3;stroke-linejoin:round;stroke-linecap:round}
+.art .hatch{stroke:var(--line2);stroke-width:2}
+.art text{font-family:var(--f-math);font-size:30px;fill:var(--ink)}
+.art .lab{font-style:italic}
+.art .sm{font-family:var(--f-body);font-size:22px;fill:var(--dim)}
+.art .smacc{font-family:var(--f-body);font-size:22px;fill:var(--acc)}
+.art .arr line{stroke:currentColor;stroke-width:4.5;stroke-linecap:round}
+.art .arr polygon{fill:currentColor}
+.art .arr text{fill:currentColor;font-style:italic;font-size:29px;paint-order:stroke;stroke:#060608;stroke-width:6px}
+.art .dim line{stroke:var(--dim);stroke-width:1.6}
+.art .dim text{fill:var(--dim);font-size:25px;font-style:italic;paint-order:stroke;stroke:#060608;stroke-width:6px}
+.art .ang path{fill:none;stroke:var(--acc);stroke-width:2.2}
+.art .ang text{fill:var(--acc);font-size:26px;font-style:italic}
+.art .dot{fill:var(--ink)}
+
+/* bars (energy diagrams) */
+.bars{position:absolute;width:210px;font-family:var(--f-math)}
+.btl{font-family:var(--f-disp);font-weight:800;font-stretch:110%;font-size:26px;text-align:center;margin-bottom:6px;color:var(--ink)}
+.bcols{height:200px;display:flex;align-items:flex-end;justify-content:center;gap:12px;border-bottom:2px solid var(--line)}
+.bc{width:50px;height:100%;display:flex;flex-direction:column;justify-content:flex-end;align-items:center}
+.bf{width:100%;height:calc(var(--h,0) * 100%);border-radius:4px 4px 0 0;transition:height 1s cubic-bezier(.2,.8,.2,1);box-shadow:0 0 26px -6px currentColor}
+.bv{font-size:20px;color:var(--ink);margin-bottom:4px;white-space:nowrap;min-height:24px}
+.bls{display:flex;justify-content:center;gap:12px;margin-top:6px}
+.bls span{width:50px;text-align:center;font-style:italic;font-size:23px;color:var(--dim)}
+.bls sub{font-size:.62em;font-style:normal}
+.be{text-align:center;font-size:21px;margin-top:4px;color:var(--ink);min-height:28px;white-space:nowrap}
+.be i{font-style:italic}.be sub{font-size:.6em;font-style:normal}.be sup{font-size:.6em}
+.bars.sm .bcols{height:130px}.bars.sm .bc{width:42px}.bars.sm .bls span{width:42px}.bars.sm .btl{font-size:22px}
+
+/* beat-driven visibility */
+.scene [data-b]{opacity:0;transform:translateY(14px);transition:opacity .6s ease,transform .8s cubic-bezier(.2,.8,.2,1),filter .4s ease,color .4s ease}
+.scene [data-b].vis{opacity:1;transform:none}
+.scene .draw[data-b]{opacity:1;transform:none;stroke-dasharray:1;stroke-dashoffset:1;transition:stroke-dashoffset 1.2s cubic-bezier(.6,0,.2,1),opacity .5s ease}
+.scene .draw[data-b].vis{stroke-dashoffset:0}
+.scene .gone,.scene .draw.gone{opacity:0!important}
+.scene g.hl,.scene .node.hl,.scene .pill.hl{filter:drop-shadow(0 0 12px rgba(180,140,255,.8))}
+@media (prefers-reduced-motion:reduce){
+  #stage{animation:none}
+  .scene,.scene [data-b]{transition-duration:.01s!important}
+}
+@media (max-width:560px){
+  #cap{padding:12px 14px 14px}
+  #chName{display:none}
+}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <div><div class="kick">FIS111 · Física General Mecánica</div><h1>Control 4: Momento lineal, la clase completa</h1></div>
+    <p id="dur"></p>
+  </header>
+
+  <div id="player">
+    <div id="frame">
+      <div id="stage"></div>
+      <div class="mark">FIS111</div>
+      <button id="big" aria-label="Reproducir la clase"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"/></svg></button>
+      <div id="resume" hidden><button id="bRes"></button><button id="bRes0">Desde el inicio</button></div>
+    </div>
+    <div id="ctl">
+      <div id="bar" tabindex="0" role="slider" aria-label="Progreso de la clase" aria-valuemin="0"><div class="tr"></div><div class="fill"></div><div class="knob"></div><div id="tip" hidden></div></div>
+      <div class="row">
+        <button class="ic" id="bPrev" aria-label="Paso anterior"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg></button>
+        <button class="ic" id="bPlay" aria-label="Reproducir"><svg viewBox="0 0 24 24" fill="currentColor"><path id="icPlay" d="M7 4.5v15l12-7.5z"/></svg></button>
+        <button class="ic" id="bNext" aria-label="Paso siguiente"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
+        <span id="time">0:00 / 0:00</span>
+        <span id="chName"></span>
+        <button class="tx" id="bVoice" aria-pressed="false" title="Narración con la voz del navegador">Voz: no</button>
+        <button class="tx" id="bSpeed" title="Velocidad">1×</button>
+        <button class="ic" id="bFs" aria-label="Pantalla completa"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
+      </div>
+    </div>
+    <div id="cap"><div class="ct" id="capTag"></div><div class="cx" id="capTx"></div></div>
+  </div>
+
+  <section>
+    <h3>Capítulos</h3>
+    <div class="chs" id="chs"></div>
+  </section>
+  <p class="keys">Atajos: <kbd>Espacio</kbd> pausa · <kbd>←</kbd> <kbd>→</kbd> paso anterior o siguiente · <kbd>F</kbd> pantalla completa. Los subtítulos son la narración completa; la voz es opcional.</p>
+</div>
+
+<script>
+/* ================= helpers: math text ================= */
+function fr(a,b){return `<span class="fr"><span>${a}</span><span>${b}</span></span>`}
+function rt(x){return `<span class="rt">√<span class="rad">${x}</span></span>`}
+function M(s){
+  const keep=[];const K=h=>{keep.push(h);return '\u0001'+(keep.length-1)+'\u0001'};
+  s=s.replace(/\{\{(.*?)\}\}/g,(_,a)=>K(`<span class="w">${a}</span>`))
+     .replace(/\[([^\]]+)\]/g,(_,a)=>K(`<span class="unit">${a.replace(/\^(\d)/g,'<sup>$1</sup>')}</span>`))
+     .replace(/_\{([^}]*)\}/g,(_,a)=>K(`<sub>${a}</sub>`))
+     .replace(/_([A-Za-z0-9áéíóú]+)/g,(_,a)=>K(`<sub>${a}</sub>`))
+     .replace(/\^\{([^}]*)\}/g,'<sup>$1</sup>').replace(/\^([0-9]+)/g,'<sup>$1</sup>');
+  s=s.split(/(<[^>]+>)/).map(p=>p[0]==='<'?p:p.replace(/(^|[^A-Za-zÀ-ÿ\u0001])([A-Za-zμωθαδφ])(?![A-Za-zÀ-ÿ])/g,'$1<i>$2</i>')).join('');
+  return s.replace(/\u0001(\d+)\u0001/g,(_,i)=>keep[+i]);
+}
+/* ================= helpers: beat attrs ================= */
+function ab(b){if(b==null||b===false)return '';if(typeof b!=='object')return ` data-b="${b}"`;let s='';if(b.b!=null)s+=` data-b="${b.b}"`;if(b.x!=null)s+=` data-x="${b.x}"`;if(b.d!=null)s+=` data-d="${b.d}"`;if(b.hl!=null)s+=` data-hl="${b.hl}"`;return s}
+const hasB=b=>b!=null&&b!==false&&(typeof b!=='object'||b.b!=null);
+/* ================= helpers: html ================= */
+function Q(x,y,s,b,cls=''){return `<div class="eq ${cls}" style="left:${x}px;top:${y}px"${ab(b)}>${M(s)}</div>`}
+function N(x,y,w,s,b,cls=''){return `<div class="nt ${cls}" style="left:${x}px;top:${y}px;width:${w}px"${ab(b)}>${s}</div>`}
+function P(x,y,s,col,b,c=''){return `<div class="pill ${c}" style="left:${x}px;top:${y}px;color:var(--${col})"${ab(b)}>${s}</div>`}
+function LI(x,y,n,s,b,w=1080){return `<div class="li" style="left:${x}px;top:${y}px;width:${w}px"${ab(b)}><span class="num">${n}</span><span>${s}</span></div>`}
+function node(x,y,w,t,s,b,cls=''){return `<div class="node ${cls}" style="left:${x}px;top:${y}px;width:${w}px"${ab(b)}>${t}<small>${M(s)}</small></div>`}
+function svg(s){return `<svg class="art" viewBox="0 0 1280 720">${s}</svg>`}
+function bars(id,x,y,t,b,cls=''){return `<div class="bars ${cls}" id="${id}" style="left:${x}px;top:${y}px"${ab(b)}><div class="btl">${t}</div><div class="bcols">${['K','Ug','Ue'].map(k=>`<div class="bc"><span class="bv"></span><div class="bf" style="background:var(--${k});color:var(--${k})"></div></div>`).join('')}</div><div class="bls"><span>K</span><span>U<sub>g</sub></span><span>U<sub>e</sub></span></div><div class="be"></div></div>`}
+function setB(r,id,v,lab,e){const el=r.querySelector('#'+id);if(!el)return;el.querySelectorAll('.bc').forEach((c,i)=>{c.style.setProperty('--h',v[i]||0);c.querySelector('.bv').textContent=lab&&lab[i]!=null?lab[i]:''});el.querySelector('.be').innerHTML=e?M(e):''}
+/* ================= helpers: svg ================= */
+const sb=s=>`<tspan font-size="19" dy="7" font-style="normal">${s}</tspan>`;
+function ln(x1,y1,x2,y2,b,c='ln',st=''){return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" class="${c}${hasB(b)&&!/dashl/.test(c)?' draw':''}" pathLength="1"${st?` style="${st}"`:''}${ab(b)}/>`}
+function pth(d,b,c='ln',st=''){return `<path d="${d}" class="${c}${hasB(b)&&!/dashl/.test(c)?' draw':''}" pathLength="1"${st?` style="${st}"`:''}${ab(b)}/>`}
+function cir(cx,cy,r,b,c='ln'){return `<circle cx="${cx}" cy="${cy}" r="${r}" class="${c}${hasB(b)&&!/dashl/.test(c)?' draw':''}" pathLength="1"${ab(b)}/>`}
+function dot(x,y,b,r=6){return `<circle cx="${x}" cy="${y}" r="${r}" class="dot"${ab(b)}/>`}
+function tx(x,y,s,b,cls='',anc='middle'){return `<text x="${x}" y="${y}" text-anchor="${anc}" dominant-baseline="central" class="${cls}"${ab(b)}>${s}</text>`}
+function ageo(x1,y1,x2,y2){const a=Math.atan2(y2-y1,x2-x1),h=17,w=.42;return{a,ex:x2-Math.cos(a)*h*.6,ey:y2-Math.sin(a)*h*.6,pts:`${x2},${y2} ${x2-h*Math.cos(a-w)},${y2-h*Math.sin(a-w)} ${x2-h*Math.cos(a+w)},${y2-h*Math.sin(a+w)}`,lx:x2+Math.cos(a)*26,ly:y2+Math.sin(a)*26}}
+function arr(x1,y1,x2,y2,col,lab,b,lp,st=''){const g=ageo(x1,y1,x2,y2);const [lx,ly]=lp||[g.lx,g.ly];return `<g class="arr" style="color:var(--${col});${st}"${ab(b)}><line x1="${x1}" y1="${y1}" x2="${g.ex}" y2="${g.ey}"/><polygon points="${g.pts}"/>${lab?`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+function darr(id,col,lab,b){return `<g class="arr" id="${id}" style="color:var(--${col})"${ab(b)}><line/><polygon/>${lab?`<text text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+function setArr(r,id,x1,y1,x2,y2,lp){const e=r.querySelector('#'+id);if(!e)return;const g=ageo(x1,y1,x2,y2);const l=e.querySelector('line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',g.ex);l.setAttribute('y2',g.ey);e.querySelector('polygon').setAttribute('points',g.pts);const t=e.querySelector('text');if(t){const p=lp||[g.lx,g.ly];t.setAttribute('x',p[0]);t.setAttribute('y',p[1])}}
+function blk(x,y,w,h,lab,b,id){return `<g${id?` id="${id}"`:''}${ab(b)}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" class="obj"/>${lab?tx(x+w/2,y+h/2,lab,null,'lab'):''}</g>`}
+function ball(x,y,r,lab,b,id){return `<g${id?` id="${id}"`:''}${ab(b)}><circle cx="${x}" cy="${y}" r="${r}" class="obj"/>${lab?tx(x,y,lab,null,'lab'):''}</g>`}
+function gnd(x1,x2,y,b,red){let h='';for(let x=x1+12;x<=x2;x+=22)h+=`<line x1="${x}" y1="${y+2}" x2="${x-12}" y2="${y+15}" class="hatch"/>`;return `<g${ab(b)}><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" class="ln"${red?' style="stroke:var(--roce)"':''}/>${h}</g>`}
+function wall(x,y1,y2,b,side=-1){let h='';for(let y=y1+10;y<=y2;y+=20)h+=`<line x1="${x}" y1="${y}" x2="${x+side*13}" y2="${y+10}" class="hatch"/>`;return `<g${ab(b)}><line x1="${x}" y1="${y1}" x2="${x}" y2="${y2}" class="ln"/>${h}</g>`}
+function ceil(x1,x2,y,b){let h='';for(let x=x1+12;x<=x2;x+=22)h+=`<line x1="${x}" y1="${y-2}" x2="${x-12}" y2="${y-15}" class="hatch"/>`;return `<g${ab(b)}><line x1="${x1}" y1="${y}" x2="${x2}" y2="${y}" class="ln"/>${h}</g>`}
+function springPts(x1,y1,x2,y2,n=9,w=15){const L=Math.hypot(x2-x1,y2-y1)||1,ux=(x2-x1)/L,uy=(y2-y1)/L,nx=-uy,ny=ux,lead=Math.min(16,L*.12);const p=[[x1,y1],[x1+ux*lead,y1+uy*lead]];const m=2*n;for(let i=0;i<m;i++){const s=lead+(L-2*lead)*(i+.5)/m,sd=(i%2?-1:1)*w;p.push([x1+ux*s+nx*sd,y1+uy*s+ny*sd])}p.push([x2-ux*lead,y2-uy*lead],[x2,y2]);return p.map(q=>q[0].toFixed(1)+','+q[1].toFixed(1)).join(' ')}
+function spr(id,x1,y1,x2,y2,b,n,w){return `<polyline${id?` id="${id}"`:''} class="spr" points="${springPts(x1,y1,x2,y2,n,w)}"${ab(b)}/>`}
+function setSpr(r,id,x1,y1,x2,y2,n,w){const e=r.querySelector('#'+id);if(e)e.setAttribute('points',springPts(x1,y1,x2,y2,n,w))}
+function dim(x1,y1,x2,y2,lab,b,lx,ly){const a=Math.atan2(y2-y1,x2-x1),nx=-Math.sin(a)*9,ny=Math.cos(a)*9;return `<g class="dim"${ab(b)}><line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}"/><line x1="${x1-nx}" y1="${y1-ny}" x2="${x1+nx}" y2="${y1+ny}"/><line x1="${x2-nx}" y1="${y2-ny}" x2="${x2+nx}" y2="${y2+ny}"/>${lab?`<text x="${lx??(x1+x2)/2}" y="${ly??(y1+y2)/2}" text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+function arc(cx,cy,r,a1,a2,lab,b,lr){lr=lr??r+24;const R=Math.PI/180,P=a=>[cx+r*Math.cos(a*R),cy-r*Math.sin(a*R)];const [x1,y1]=P(a1),[x2,y2]=P(a2);const lg=Math.abs(a2-a1)>180?1:0,sw=a2>a1?0:1,am=(a1+a2)/2*R;return `<g class="ang"${ab(b)}><path d="M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 ${lg} ${sw} ${x2.toFixed(1)} ${y2.toFixed(1)}"/>${lab?`<text x="${(cx+lr*Math.cos(am)).toFixed(1)}" y="${(cy-lr*Math.sin(am)).toFixed(1)}" text-anchor="middle" dominant-baseline="central">${lab}</text>`:''}</g>`}
+/* ================= helpers: motion ================= */
+function pick(j,o){let v;for(const k of Object.keys(o).map(Number).sort((a,b)=>a-b))if(k<=j)v=o[k];return v}
+function tween(r,key,dur,fn){r._tw=r._tw||{};const id={};r._tw[key]=id;const t0=performance.now();const e=x=>x<.5?4*x*x*x:1-Math.pow(-2*x+2,3)/2;function st(now){if(r._tw[key]!==id)return;const p=Math.min(1,(now-t0)/(dur*1000));fn(e(p));if(p<1)requestAnimationFrame(st)}requestAnimationFrame(st)}
+function animv(r,key,to,dur,fn,instant){r._v=r._v||{};const from=r._v[key];r._v[key]=to;if(instant||from==null){fn(to);return}const isA=Array.isArray(to);tween(r,key,dur,p=>fn(isA?to.map((v,i)=>from[i]+(v-from[i])*p):from+(to-from)*p))}
+function setT(r,id,x,y){const e=r.querySelector('#'+id);if(e)e.setAttribute('transform',`translate(${x},${y})`)}
+
+/* ================= content registry ================= */
+const CHS=[],SC=[];let _ch=null;
+function CH(title,sub,narr){_ch={title,sub,scenes:[],i:CHS.length};CHS.push(_ch);if(narr)S({card:true,title,beats:[narr]})}
+function S(o){o.ch=_ch;o.i=SC.length;SC.push(o);_ch.scenes.push(o)}
+</script>
+<script>
+/* ================= helpers extra (momento) ================= */
+function vc(s){return `<span class="vc">${s}</span>`}
+function cball(x,y,r,col,lab,b,id){return `<g${id?` id="${id}"`:''}${ab(b)}><circle cx="${x}" cy="${y}" r="${r}" style="fill:#101016;stroke:var(--${col});stroke-width:3.5"/>${lab?`<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="central" class="lab" style="fill:var(--${col});font-size:${Math.max(18,Math.min(30,r*.9))}px">${lab}</text>`:''}</g>`}
+function cbox(x,y,w,h,col,lab,b,id){return `<g${id?` id="${id}"`:''}${ab(b)}><rect x="${x}" y="${y}" width="${w}" height="${h}" rx="6" style="fill:#101016;stroke:var(--${col});stroke-width:3.5"/>${lab?`<text x="${x+w/2}" y="${y+h/2}" text-anchor="middle" dominant-baseline="central" class="lab" style="fill:var(--${col});font-size:24px">${lab}</text>`:''}</g>`}
+/* car drawn with bottom-center at (0,0); facing right */
+function carG(w,col,lab){const h=w*.3;return `<rect x="${-w/2}" y="${-h-w*.1}" width="${w}" height="${h}" rx="8" style="fill:#101016;stroke:var(--${col});stroke-width:3.5"/><path d="M${-w*.28} ${-h-w*.1} L${-w*.18} ${-h-w*.3} L${w*.16} ${-h-w*.3} L${w*.3} ${-h-w*.1}" style="fill:#101016;stroke:var(--${col});stroke-width:3"/><circle cx="${-w*.28}" cy="${-w*.1}" r="${w*.1}" class="obj"/><circle cx="${w*.28}" cy="${-w*.1}" r="${w*.1}" class="obj"/>${lab?`<text x="0" y="${-h/2-w*.1}" text-anchor="middle" dominant-baseline="central" style="fill:var(--${col});font-family:var(--f-body);font-size:${Math.round(w*.15)}px">${lab}</text>`:''}`}
+function car(x,y,w,col,lab,b,id){return `<g${ab(b)}><g${id?` id="${id}"`:''} transform="translate(${x},${y})">${carG(w,col,lab)}</g></g>`}
+function axesG(x,y,L,b,lx='î',ly='ĵ'){return `<g${ab(b)}>${arr(x,y,x+L,y,'dim','')}${arr(x,y,x,y-L,'dim','')}${tx(x+L+22,y,lx,null,'lab')}${tx(x,y-L-22,ly,null,'lab')}</g>`}
+function kf(t,P){if(t<=P[0][0])return P[0][1];for(let i=1;i<P.length;i++){if(t<=P[i][0]){const a=P[i-1],b=P[i],u=(t-a[0])/(b[0]-a[0]);return a[1]+(b[1]-a[1])*u}}return P[P.length-1][1]}
+/* 1D position: contact at time tc at xc, speed before vb, after va (px/s) */
+function p1d(t,tc,xc,vb,va){return xc+(t<tc?vb:va)*(t-tc)}
+function vis(r,id,on){const e=r.querySelector('#'+id);if(e)e.style.opacity=on?1:0}
+function ttl(x,y,s,b){return `<text x="${x}" y="${y}" class="ttl" text-anchor="middle"${ab(b)}>${s}</text>`}
+function sep(y,b){return `<line x1="70" y1="${y}" x2="1210" y2="${y}" class="ln2 dashl"${ab(b)}/>`}
+/* standard art root for "--dim" arrows */
+document.documentElement.style.setProperty('--dim2','#9a98a6');
+</script>
+<script>
+/* ===================== INTRO ===================== */
+CH('Introducción','Cómo usar esta clase',null);
+
+S({noHdr:true,title:'Control 4',
+html:`
+<div class="hk" style="left:90px;top:160px" data-b="0">FIS111 · USM · 2do semestre 2026</div>
+<div class="hero" style="left:84px;top:196px" data-b="0" data-d=".15">Control 4</div>
+<div class="hsub" style="left:90px;top:342px" data-b="0" data-d=".3">Momento lineal, desde cero</div>
+${N(90,420,600,'<b>Viernes 30 de octubre</b>, en tu bloque de ayudantía. Lápiz, calculadora científica simple y carnet.',1)}
+${N(90,530,600,'Entran la <b>clase 16</b>, la <b>clase 18</b> y la <b>ayudantía 9</b>.',2)}
+${N(90,612,640,'<span class="kb">Espacio</span> pausa &nbsp;·&nbsp; <span class="kb">←</span> <span class="kb">→</span> paso anterior o siguiente &nbsp;·&nbsp; velocidad abajo a la derecha',3)}
+${svg(`
+  ${gnd(760,1230,470,0)}
+  <g id="i_a">${cball(0,0,34,'A','A')}</g>
+  <g id="i_b">${cball(0,0,34,'B','B')}</g>
+  ${darr('i_pa','mom','p'+sb('A'),0)}
+  ${darr('i_pb','mom','p'+sb('B'),0)}
+  ${tx(995,560,'p total: constante',0,'smacc')}
+`)}`,
+beats:[
+`Hola. Esta es la clase completa para el control 4 de FIS111. El tema es uno solo: el momento lineal. Vamos desde cero, paso a paso, sin saltarnos nada, como si nunca hubieras visto la materia.`,
+`Primero, los datos del control. Es el viernes 30 de octubre, durante tu bloque de ayudantía, y solo en tu bloque, no en otro. Lleva lápiz, una calculadora científica simple y tu cédula o tu carnet USM.`,
+`Entra la clase 16, que es momento lineal en una dimensión, la clase 18, que es momento lineal en dos dimensiones, y la ayudantía 9. Vamos a ver toda la teoría, y después resolvemos todos los ejercicios de esas clases y de la ayudantía, uno por uno.`,
+`Como siempre: pausa con la barra espaciadora, retrocede o avanza con las flechas, y cambia la velocidad abajo a la derecha. Si algo no te queda claro, vuelve atrás. Para eso está. Y si quieres, puedes activar la voz.`],
+loop(st,r){const P=5.5,c=st%P,tc=2;const xa=p1d(c,tc,900,70,14),xb=p1d(c,tc,968,0,56);setT(r,'i_a',xa,436);setT(r,'i_b',xb,436);
+  const pa=(c<tc?70:14)*1.4,pb=(c<tc?0:56)*1.4;setArr(r,'i_pa',xa,380,xa+Math.max(pa,1),380);setArr(r,'i_pb',xb,380,xb+Math.max(pb,1),380);
+  const ea=r.querySelector('#i_pb');if(ea)ea.style.opacity=c<tc?0:1}
+});
+
+S({title:'El mapa del control',
+html:`
+${node(90,190,250,'Newton','ΣF = m a',0,'acc')}
+${node(420,190,250,'Impulso','I = F Δt',1)}
+${node(750,190,330,'Momento lineal','p = m v',1,'acc')}
+${node(90,420,320,'Conservación','p_{antes} = p_{después}',2,'acc')}
+${node(490,420,320,'Colisiones','{{elásticas e inelásticas}}',3)}
+${node(890,420,300,'En 2D','{{un eje a la vez}}',4)}
+${svg(`${arr(342,240,412,240,'line','',1)}${arr(672,240,742,240,'line','',{b:1,d:.2})}
+${arr(915,300,330,412,'line','',2)}${arr(412,470,482,470,'line','',3)}${arr(812,470,882,470,'line','',4)}`)}
+${Q(90,600,'g = 10 [m/s^2]',5,'s box')}
+${N(420,600,700,'Igual que en el video del certamen 2. Si el enunciado da otro valor, se usa el del enunciado.',5)}`,
+beats:[
+`Primero, el mapa. Partimos de algo que ya conoces bien: la segunda ley de Newton. La suma de fuerzas es masa por aceleración.`,
+`Si una fuerza actúa durante un tiempo, produce algo llamado impulso. Y el impulso cambia una cantidad nueva, el momento lineal, que es masa por velocidad. Esas son las dos ideas nuevas de la clase 16.`,
+`Cuando no hay fuerzas externas, el momento total de un grupo de cuerpos no cambia: se conserva. Esa es la herramienta principal del control. Casi todos los problemas se resuelven con ella.`,
+`Con la conservación resolvemos choques. Los choques se clasifican en elásticos e inelásticos, según lo que pasa con la energía cinética.`,
+`Y al final, la clase 18: todo lo anterior en dos dimensiones. La idea clave es que se trabaja un eje a la vez: el eje x por un lado y el eje y por otro.`,
+`Una convención: igual que en el video del certamen 2, usamos g igual a 10 metros por segundo al cuadrado. Si un enunciado te da otro valor, como 9,8, usas el del enunciado. Siempre manda el enunciado.`]
+});
+
+S({title:'Código de colores',
+html:(()=>{const F=[['vel','Velocidad','v'],['mom','Momento lineal','p = m v'],['imp','Fuerza e impulso','F, I'],['K','Energía cinética','K = ½ m v^2']];
+let s='',h='';F.forEach((f,k)=>{const y=215+78*k;s+=arr(110,y,230,y,f[0],'',{b:0,d:k*.1});h+=`<div class="nt" style="left:262px;top:${y-19}px;width:460px;color:var(--${f[0]})"${ab({b:0,d:k*.1})}><b style="color:inherit">${f[1]}</b> <span style="font-family:var(--f-math);color:var(--dim)">${M(f[2])}</span></div>`});
+return svg(s+cball(860,300,46,'A','A',1)+cball(1060,300,46,'B','B',1)+ttl(860,380,'CUERPO 1',1)+ttl(1060,380,'CUERPO 2',1)+
+`<g data-b="2"><rect x="770" y="440" width="380" height="80" rx="10" class="ln2"/><rect x="770" y="545" width="380" height="80" rx="10" class="ln2"/></g>`+ttl(960,487,'ANTES DEL CHOQUE',2)+ttl(960,592,'DESPUÉS: v′ (con prima)',2))+h})(),
+beats:[
+`Para que todo sea fácil de seguir, cada cosa tendrá siempre el mismo color. La velocidad va en celeste. El momento lineal, que es la estrella de hoy, en amarillo. Las fuerzas y el impulso en rosado. Y la energía cinética en morado.`,
+`Cuando hay dos cuerpos, el primero va en azul y el segundo en rojo.`,
+`Y en cada choque vamos a dibujar dos fotos por separado: una justo antes del choque y otra justo después. A las velocidades de después les ponemos una prima, ese apostrofito: v prima significa "la velocidad después del choque".`]
+});
+
+/* ===================== CH1 IMPULSO Y MOMENTO ===================== */
+CH('Impulso y momento lineal','Clase 16','Capítulo uno: impulso y momento lineal. Aquí nace todo lo demás, así que vamos con calma.');
+
+S({title:'Una fuerza que actúa durante un tiempo',
+html:`${svg(`
+${gnd(80,640,520,0)}
+<g id="c1_b">${blk(-55,-90,110,90,'m',0)}</g>
+${darr('c1_f','imp','F',0)}
+${darr('c1_v','vel','v',0)}
+${tx(360,580,'empujas durante un tiempo Δt',0,'sm')}`)}
+${Q(720,190,'ΣF = m a',1,'l')}
+${Q(720,290,`a = ${fr('Δv','Δt')}`,2,'l')}
+${N(720,380,480,'Δ = "cambio" = final − inicial',2)}
+${Q(720,440,`ΣF = m ${fr('Δv','Δt')}`,3,'l')}
+${Q(720,560,'ΣF Δt = m Δv',4,'l box')}`,
+beats:[
+`Empecemos con una pregunta. Si empujas un carrito, ¿de qué depende cuánto cambia su velocidad? De dos cosas: de qué tan fuerte lo empujas, y de cuánto tiempo lo empujas. Un empujón corto lo acelera poco. Uno largo, mucho más.`,
+`Para verlo con ecuaciones, partimos de Newton: la fuerza neta es la masa por la aceleración.`,
+`Y la aceleración es el cambio de velocidad dividido por el tiempo que demoró ese cambio: delta v sobre delta t. La letra delta, el triangulito, siempre significa "cambio", o sea, el valor final menos el valor inicial.`,
+`Reemplazamos la aceleración en Newton: la fuerza neta es m por delta v, dividido por delta t.`,
+`Ahora pasamos el delta t, que está dividiendo, a multiplicar al otro lado. Queda: fuerza neta por delta t, igual a m por delta v. Esta ecuación es la base de todo el capítulo. Léela así: fuerza por tiempo produce un cambio de velocidad.`],
+loop(st,r){const P=6,c=st%P,on=c<3.2;const x=c<3.2?140+18*c*c:140+18*3.2*3.2+115*(c-3.2);const X=Math.min(x,560);setT(r,'c1_b',X,520);
+  const f=r.querySelector('#c1_f');if(f)f.style.opacity=on?1:0;setArr(r,'c1_f',X-160,475,X-62,475);
+  const v=c<3.2?36*c:115;setArr(r,'c1_v',X,400,X+Math.max(4,v*.9),400)}
+});
+
+S({title:'El impulso: el área bajo F versus t',
+html:`${svg(`
+${arr(110,560,640,560,'line','',0)}${arr(140,590,140,200,'line','',0)}
+${tx(660,560,'t',0,'lab')}${tx(140,180,'F',0,'lab')}
+<g data-b="0"><line x1="140" y1="330" x2="520" y2="330" style="stroke:var(--imp);stroke-width:4"/><line x1="520" y1="330" x2="520" y2="560" class="ln2 dashl"/></g>
+${tx(118,330,'F',0,'lab')}${tx(520,590,'t'+sb('f'),0,'lab')}
+<g data-b="1"><rect x="142" y="332" width="376" height="226" style="fill:rgba(255,143,208,.18)"/></g>
+${tx(330,445,'área = F Δt',1,'lab')}
+<g data-b="3">${arr(740,560,1220,560,'line','')}${arr(770,590,770,200,'line','')}${tx(1240,560,'t',null,'lab')}${tx(770,180,'F',null,'lab')}
+<path d="M780 558 C 880 556, 905 230, 960 230 S 1040 556, 1140 558 Z" style="fill:rgba(255,143,208,.18);stroke:var(--imp);stroke-width:4"/>
+${tx(960,470,'misma área',null,'lab')}${tx(960,620,'un choque real',null,'sm')}</g>`)}
+${Q(150,615,'I = ΣF Δt',2,'l box')}
+${N(470,630,260,'Unidad: N·s',2)}`,
+beats:[
+`Grafiquemos la fuerza contra el tiempo. Si la fuerza es constante, el gráfico es una línea horizontal, a la altura F, desde t igual a cero hasta el tiempo final.`,
+`El área bajo esa línea es un rectángulo. La base es delta t y la altura es F, así que el área es F por delta t. Y acabamos de ver que eso es igual a m por delta v. El área bajo el gráfico es justo el efecto de la fuerza.`,
+`Esa área tiene nombre: se llama impulso, y se escribe con la letra I mayúscula. El impulso es la fuerza neta por el tiempo que actúa. Su unidad es el newton por segundo.`,
+`En un choque real la fuerza no es constante. Sube muy rápido, llega a un máximo y baja muy rápido, como esta curva. Pero la idea es la misma: el impulso es el área bajo la curva. Por eso un golpe muy corto pero muy fuerte puede tener el mismo impulso que un empujón largo y suave.`]
+});
+
+S({title:'Nace el momento lineal',
+html:`
+${Q(90,180,'ΣF Δt = m Δv',0,'l dim')}
+${Q(90,270,'ΣF Δt = m (v_f − v_i)',0,'l')}
+${Q(90,360,'ΣF Δt = <span data-hl="1,2">m v_f</span> − <span data-hl="1,2">m v_i</span>',1,'l')}
+${Q(760,200,'p = m v',2,'xl box')}
+${N(760,330,440,'Momento lineal o <b>cantidad de movimiento</b>.',2)}
+${Q(760,420,'[kg·m/s] = [N·s]',3,'s')}
+${Q(90,500,'I = p_f − p_i = Δp',4,'xl box')}`,
+beats:[
+`Volvamos a la ecuación: fuerza neta por delta t igual a m por delta v. Abramos el delta v: es la velocidad final menos la velocidad inicial. Entonces queda m por, v final menos v inicial.`,
+`Ahora repartimos la m, multiplicando cada término: m por v final, menos m por v inicial. Fíjate que aparece dos veces la misma combinación: masa por velocidad.`,
+`A esa combinación le damos un nombre: momento lineal, también llamado cantidad de movimiento. Se escribe con la letra p minúscula. p es igual a m por v. Es la definición más importante del control.`,
+`Sus unidades salen solas: kilogramos por metros por segundo. Y un dato útil: un newton por segundo es exactamente lo mismo que un kilogramo metro por segundo. Así que el impulso y el momento se miden en lo mismo.`,
+`Con este nombre, la ecuación queda muy simple: el impulso es p final menos p inicial. O sea, el impulso es el cambio de momento. Esta frase vale oro: el impulso causa un cambio de momento.`]
+});
+
+S({title:'El momento es un vector',
+html:`${svg(`
+${axesG(120,560,120,0)}
+${gnd(260,700,470,0)}
+${cball(330,436,34,'A','',1)}
+${tx(330,515,'m = 1,5 kg',1,'sm')}
+${arr(380,436,520,436,'vel','v',1,[560,436])}
+${arr(330,360,660,360,'mom','p',3,[690,360])}`)}
+${N(760,190,450,'La masa es positiva, así que <b>p apunta igual que v</b>.',0)}
+${Q(760,300,'v = 2,0 î [m/s]',1,'s')}
+${Q(760,380,`${vc('p')} = m ${vc('v')} = 1,5 · 2,0 î`,2,'s')}
+${Q(760,450,`${vc('p')} = 3,0 î [kg·m/s]`,3,'s box')}
+${N(760,560,450,'El <b>impulso</b> apunta como el cambio de velocidad: igual que <b>la fuerza</b>.',4)}`,
+beats:[
+`Algo muy importante: el momento es un vector. Tiene tamaño y dirección. Y como la masa siempre es positiva, el momento apunta exactamente hacia donde apunta la velocidad.`,
+`Ejemplo de la clase: una bolita de 1,5 kilos que va hacia la derecha a 2 metros por segundo. Hacia la derecha es la dirección i gorro, el vector unitario del eje x.`,
+`Su momento es m por v. Multiplicamos la masa por la velocidad: 1,5 por 2,0, en dirección i gorro.`,
+`Da 3,0 i gorro kilogramo metro por segundo. Un vector de tamaño 3, que apunta hacia la derecha, igual que la velocidad.`,
+`¿Y el impulso hacia dónde apunta? Hacia donde apunta el cambio de velocidad. Esa es la misma dirección de la aceleración, y la misma dirección de la fuerza. El impulso siempre apunta como la fuerza.`]
+});
+
+S({title:'Ejemplo extra: el signo lo es todo',
+html:`${svg(`
+${wall(560,330,520,0,1)}
+${gnd(80,560,520,0)}
+<g id="c5_b">${cball(0,0,30,'A','')}</g>
+${darr('c5_v','vel','v',0)}
+${tx(230,580,'m = 0,5 kg',0,'sm')}
+${arr(120,250,240,250,'line','+',1,[260,230])}`)}
+${Q(700,180,'v_i = +10 [m/s]  ,  v_f = −8 [m/s]',1,'s')}
+${Q(700,250,'p_i = 0,5 · 10 = +5 [kg·m/s]',2,'s')}
+${Q(700,310,'p_f = 0,5 · (−8) = −4 [kg·m/s]',2,'s')}
+${Q(700,380,'I = p_f − p_i = −4 − 5 = −9 [N·s]',3,'s box')}
+${P(700,460,'✕ 8 − 10 = −2 está mal','B',4)}
+${Q(700,530,`F_{prom} = ${fr('I','Δt')} = ${fr('9','0,01')} = 900 [N]`,5,'s')}`,
+beats:[
+`Un ejemplo extra, que no está en la clase, para practicar el detalle que más errores produce: los signos. Una pelota de 0,5 kilos choca contra una pared a 10 metros por segundo, y rebota a 8 metros por segundo. ¿Qué impulso recibió?`,
+`Primero, siempre, elegimos un sentido positivo. Digamos que hacia la derecha es positivo. Entonces la velocidad inicial, que va hacia la pared, es más 10. Y la final, como va hacia la izquierda, es menos 8.`,
+`Momento inicial: masa por velocidad, 0,5 por 10, más 5. Momento final: 0,5 por menos 8, menos 4.`,
+`Impulso: final menos inicial. Menos 4, menos 5: menos 9 newton segundo. El signo menos dice que el impulso apunta hacia la izquierda. Tiene sentido: la pared empujó a la pelota hacia la izquierda.`,
+`El error típico es restar los tamaños, 8 menos 10, y decir que el cambio es 2. Eso está mal. Cuando algo rebota, las velocidades tienen signos opuestos, y los cambios se suman: de más 10 a menos 8 hay 18 metros por segundo de cambio.`,
+`Y si nos dicen que el choque duró 0,01 segundos, la fuerza promedio de la pared es el impulso dividido por el tiempo: 9 dividido por 0,01, que da 900 newton. Un choque corto produce fuerzas enormes.`],
+loop(st,r){const P=4.5,c=st%P,tc=1.8;const x=c<tc?140+210*c:530-160*(c-tc);const X=Math.max(x,120);setT(r,'c5_b',X,490);const v=c<tc?100:-80;setArr(r,'c5_v',X,420,X+v,420)}
+});
+
+S({title:'Momento de un sistema',
+html:`${svg(`
+${arr(120,560,330,470,'mom','p'+sb('1'),0,[210,480])}
+${arr(330,470,420,300,'mom','p'+sb('2'),{b:0,d:.25},[345,375])}
+${arr(420,300,640,330,'mom','p'+sb('3'),{b:0,d:.5},[540,285])}
+${arr(120,560,640,330,'acc','p'+sb('total'),{b:1},[420,500],'stroke-width:6')}`)}
+${Q(720,200,`${vc('p')}_{total} = ${vc('p')}_1 + ${vc('p')}_2 + ${vc('p')}_3`,0,'s')}
+${N(720,300,480,'<b>1D:</b> suma con signo. Derecha +, izquierda −.',2)}
+${N(720,400,480,'<b>2D:</b> suma por componentes.',3)}
+${Q(720,470,'p_{x,total} = p_{1x} + p_{2x} + p_{3x}',3,'xs')}
+${Q(720,530,'p_{y,total} = p_{1y} + p_{2y} + p_{3y}',3,'xs')}`,
+beats:[
+`Si tenemos varios cuerpos, a todo el grupo le llamamos sistema. Y el momento del sistema es la suma de los momentos de cada cuerpo: p 1, más p 2, más p 3.`,
+`Pero es una suma de vectores, no de números. Gráficamente: pones las flechas una detrás de la otra, la cola de cada una en la punta de la anterior. La flecha que va desde el inicio de la primera hasta la punta de la última es el momento total.`,
+`En una dimensión es fácil: sumas con signo. Lo que va a la derecha es positivo y lo que va a la izquierda es negativo.`,
+`En dos dimensiones sumas por componentes: todas las componentes x por un lado, y todas las componentes y por el otro. Eso lo vamos a practicar mucho en la clase 18.`]
+});
+
+/* ===================== CH2 CONSERVACIÓN ===================== */
+CH('Conservación del momento','Clase 16','Capítulo dos: la conservación del momento lineal. Es la herramienta que vas a usar en todos los problemas del control.');
+
+S({title:'Fuerzas internas y externas',
+html:`${svg(`
+${gnd(110,690,520,0)}
+<g data-b="0"><rect x="180" y="330" width="440" height="230" rx="18" class="ln2 dashl" style="stroke:var(--acc)"/></g>
+${tx(400,312,'sistema',0,'smacc')}
+${cball(340,450,52,'A','A',0)}${cball(460,450,52,'B','B',0)}
+<g data-b="1">${arr(420,372,540,372,'imp','F'+sb('A→B'),null,[585,350])}${arr(380,372,260,372,'imp','F'+sb('B→A'),null,[215,350])}</g>
+<g data-b="2">${arr(240,450,240,520,'peso','',null)}${tx(205,505,'P',null,'lab')}${arr(560,520,560,450,'normal','',null)}${tx(595,475,'N',null,'lab')}${tx(400,620,'externas: vienen de afuera',null,'sm')}</g>`)}
+${N(740,190,470,'<b>Internas:</b> las que se hacen entre ellos.',1)}
+${N(740,280,470,'<b>Externas:</b> peso, normal, roce, una mano…',2)}
+${Q(740,380,`${vc('F')}_{A→B} = −${vc('F')}_{B→A}`,3,'s')}
+${N(740,440,470,'Misma fuerza, mismo tiempo de contacto.',3)}
+${Q(740,520,`${vc('I')}_{B} = −${vc('I')}_{A}`,4,'s box')}
+${N(740,600,470,'Lo que gana B, lo pierde A.',4)}`,
+beats:[
+`Para hablar de conservación, primero hay que separar dos tipos de fuerzas. Dibujamos una caja imaginaria alrededor de los cuerpos que nos interesan. Eso es el sistema.`,
+`Las fuerzas internas son las que los cuerpos del sistema se hacen entre ellos. En un choque, A empuja a B y B empuja a A.`,
+`Las fuerzas externas son las que vienen de afuera de la caja: el peso, que lo pone la Tierra, la normal que pone el suelo, el roce, una mano que empuja.`,
+`Y aquí viene el truco. Por la tercera ley de Newton, la fuerza de A sobre B es igual y opuesta a la fuerza de B sobre A. Y actúan durante exactamente el mismo tiempo: el tiempo que están en contacto.`,
+`Entonces sus impulsos también son iguales y opuestos. El momento que gana B es justo el que pierde A. La suma no cambia. Las fuerzas internas solo pasan momento de un cuerpo al otro.`]
+});
+
+S({title:'La ley de conservación',
+html:`
+${Q(90,180,`ΣF_{ext} = ${fr('Δp_{total}','Δt')}`,0,'l')}
+${Q(90,300,'ΣF_{ext} = 0  ⇒  p_{total} = {{constante}}',1,'l')}
+${Q(90,410,`${vc('p')}_{antes} = ${vc('p')}_{después}`,2,'xl box')}
+${Q(90,560,'m_1 v_1 + m_2 v_2 = m_1 v_1′ + m_2 v_2′',3,'l')}
+${N(820,200,400,'Las fuerzas internas no aparecen: se cancelan de a pares.',0)}
+${N(820,340,400,'Cada cuerpo <b>sí</b> cambia su momento. Lo que se conserva es <b>la suma</b>.',4)}`,
+beats:[
+`Juntemos todo. Para el sistema completo, la fuerza externa neta es igual al cambio del momento total dividido por el tiempo. Las fuerzas internas no aparecen, porque se cancelan de a pares.`,
+`Si no hay fuerzas externas, o si las que hay suman cero, entonces el momento total no cambia. Es constante. Decimos que el momento se conserva.`,
+`En un choque eso se escribe así: el momento total antes del choque es igual al momento total después del choque. Esta es la ecuación del control.`,
+`Para dos cuerpos en una dimensión se ve así: m 1 v 1 más m 2 v 2, antes, igual a m 1 v 1 prima más m 2 v 2 prima, después. Cada velocidad lleva su signo.`,
+`Fíjate en algo que confunde a mucha gente: los cuerpos, cada uno por su cuenta, sí cambian su momento. Lo que se conserva es la suma de todos.`]
+});
+
+S({title:'¿Cuándo se puede usar?',
+html:`
+${LI(90,190,1,'<b>Choques y explosiones.</b> Duran un instante y las fuerzas internas son gigantes: el peso o el roce no alcanzan a cambiar el momento. Comparas <b>justo antes</b> con <b>justo después</b>.',1)}
+${LI(90,330,2,'<b>Por ejes.</b> Si no hay fuerza externa en <i>x</i>, se conserva <i>p<sub>x</sub></i>, aunque en <i>y</i> actúen el peso y la normal.',2)}
+${LI(90,450,3,'<b>Solo en el choque.</b> Si después sube una rampa, se columpia o cae, esa parte se resuelve con <b>energía</b>.',3)}`,
+beats:[
+`Ahora la pregunta práctica: ¿cuándo puedo usar la conservación del momento? Hay tres ideas que tienes que tener claras.`,
+`Uno: en choques y explosiones. Duran un instante muy corto, y en ese instante las fuerzas internas son gigantes, mucho más grandes que el peso o el roce. Por eso, durante el choque, las externas no alcanzan a cambiar el momento, y se pueden ignorar. Se compara justo antes con justo después.`,
+`Dos: el momento puede conservarse en una sola dirección. Por ejemplo, sobre hielo sin roce no hay fuerzas horizontales, así que el momento horizontal se conserva. Pero en vertical están el peso y la normal del hielo, que pueden cambiar el momento vertical. Lo vas a ver en el trineo y en el carrito con el paquete.`,
+`Tres, y esto es un error clásico: la conservación sirve para el instante del choque. Si después el cuerpo sube por una rampa, se columpia o cae, ahí actúan fuerzas externas durante un buen rato. Para esa parte se usa energía, no momento. El péndulo balístico es el ejemplo perfecto.`]
+});
+
+S({title:'Método para problemas de choques',
+html:`
+${P(90,172,'Paso a paso','acc',0)}
+${LI(90,228,1,'<b>Dos dibujos:</b> justo antes y justo después del choque.',1)}
+${LI(90,300,2,'<b>Ejes y sentido positivo.</b> Escríbelo en la hoja.',2)}
+${LI(90,372,3,'<b>Momento de cada cuerpo</b>, con signo o con componentes.',3)}
+${LI(90,444,4,'<b>Iguala</b> <i>p</i><sub>antes</sub> = <i>p</i><sub>después</sub>: una ecuación por eje.',4)}
+${LI(90,516,5,'<b>Despeja</b> e interpreta el signo.',5)}
+${LI(90,588,6,'<b>¿Tipo de choque?</b> Compara <i>K</i> antes y después.',6)}`,
+beats:[
+`Te dejo el método que vamos a usar en todos los problemas.`,
+`Uno: haz dos dibujos, uno justo antes del choque y otro justo después. En cada uno, pon las masas y las velocidades que conoces, y las que no conoces con un signo de interrogación.`,
+`Dos: elige tus ejes y un sentido positivo, y escríbelo en la hoja. Eso te ahorra la mitad de los errores.`,
+`Tres: escribe el momento de cada cuerpo, masa por velocidad, con su signo en una dimensión, o con sus componentes en dos dimensiones.`,
+`Cuatro: iguala el momento total antes con el momento total después. Una ecuación por cada eje en que se conserve.`,
+`Cinco: despeja la incógnita. Si sale negativa, no está mal: significa que va en el sentido contrario al que elegiste como positivo.`,
+`Seis: si te preguntan qué tipo de choque fue, calculas la energía cinética antes y después y las comparas. Eso lo vemos ahora mismo.`]
+});
+
+/* ===================== CH3 TIPOS DE COLISIONES ===================== */
+CH('Tipos de colisiones','Clases 16 y 18','Capítulo tres: los tipos de colisiones. En un choque el momento siempre se conserva. La energía cinética, no siempre.');
+
+S({title:'Momento y energía cinética',
+html:`
+${Q(90,190,`K = ${fr('1','2')} m v^2`,0,'xl')}
+${N(90,330,520,'Es un <b>número</b>, siempre positivo. No es un vector: el signo de <i>v</i> no importa.',0)}
+${Q(700,190,'p {{se conserva en todo choque}}',1,'s acc')}
+${Q(700,270,'K {{puede cambiar}}',1,'s')}
+${N(700,330,500,'Se va en calor, ruido y deformación.',1)}
+${Q(90,470,'{{Elástica:}} K_{antes} = K_{después}',2,'l')}
+${Q(90,570,'{{Inelástica:}} K_{antes} ≠ K_{después}',3,'l')}
+${N(820,570,400,'Puede ser <b>menor</b> o <b>mayor</b> (explosión).',3)}`,
+beats:[
+`Recordemos la energía cinética: un medio de m v al cuadrado. Es la energía que tiene un cuerpo por estar moviéndose. Y a diferencia del momento, no es un vector: es un número, y siempre es positivo, porque la velocidad va al cuadrado.`,
+`En todos los choques el momento total se conserva. Pero la energía cinética total puede cambiar, porque una parte se puede transformar en calor, en ruido o en deformar los cuerpos. Piensa en el ruido de un choque de autos: eso es energía que se fue.`,
+`Según lo que pasa con la energía cinética, los choques se clasifican. Choque elástico: la energía cinética total antes es igual a la energía cinética total después. No se perdió nada.`,
+`Choque inelástico: la energía cinética antes es distinta de la de después. Casi siempre disminuye. Pero la clase 18 dice que puede ser mayor o menor, porque en una explosión, o cuando alguien salta, energía química se transforma en energía cinética, y la cinética aumenta.`]
+});
+
+S({title:'Los cuatro casos',
+html:`${svg(`
+${sep(440,0)}<line x1="640" y1="170" x2="640" y2="700" class="ln2 dashl" data-b="0"/>
+<g data-b="0">${ttl(355,190,'ELÁSTICO')}${gnd(90,610,400)}<g id="t1a">${cball(0,0,26,'A','')}</g><g id="t1b">${cball(0,0,26,'B','')}</g></g>
+<g data-b="1">${ttl(925,190,'INELÁSTICO')}${gnd(670,1190,400)}<g id="t2a">${cball(0,0,26,'A','')}</g><g id="t2b">${cball(0,0,32,'B','')}</g></g>
+<g data-b="2">${ttl(355,470,'PERFECTAMENTE INELÁSTICO')}${gnd(90,610,670)}<g id="t3a">${cball(0,0,26,'A','')}</g><g id="t3b">${cball(0,0,32,'B','')}</g></g>
+<g data-b="3">${ttl(925,470,'EXPLOSIÓN')}${gnd(670,1190,670)}<g id="t4a">${cball(0,0,26,'A','')}</g><g id="t4b">${cball(0,0,32,'B','')}</g></g>`)}
+${N(110,232,500,'<i>K</i> igual. Masas iguales: <b>intercambian</b> velocidades.',0)}
+${N(690,232,500,'Rebotan más lento: <i>K</i> disminuye.',1)}
+${N(110,512,500,'Quedan <b>pegados</b>: la mayor pérdida de <i>K</i>.',2)}
+${N(690,512,500,'Parten juntos y se separan: <i>K</i> <b>aumenta</b>.',3)}`,
+beats:[
+`Veámoslos en movimiento. Arriba a la izquierda, un choque elástico. Dos bolas iguales, una en reposo. La que llega se detiene, y la otra sale con la misma rapidez. Intercambiaron velocidades. No se perdió energía cinética.`,
+`Arriba a la derecha, un choque inelástico. Los cuerpos rebotan, pero más lento de lo que deberían. Se perdió parte de la energía cinética.`,
+`Abajo a la izquierda, el caso extremo: los cuerpos quedan pegados y siguen juntos, con la misma velocidad. Se llama choque perfectamente inelástico, o totalmente inelástico. Es el choque que pierde la mayor cantidad posible de energía cinética. El péndulo balístico y el carrito con el paquete son de este tipo.`,
+`Abajo a la derecha, una explosión. Los cuerpos parten juntos y en reposo, y salen disparados en sentidos opuestos. El momento total era cero y sigue siendo cero, pero la energía cinética aumentó. El trineo de Luis y Karen es de este tipo.`,
+`Un dato: las bolas de pool se acercan mucho a un choque elástico. Los choques de autos, en cambio, suelen ser muy inelásticos. Aunque en el ejercicio de la clase 16 vamos a descubrir algo curioso con eso.`],
+loop(st,r){const P=5,c=st%P,tc=2;
+  setT(r,'t1a',p1d(c,tc,330,110,0),374);setT(r,'t1b',p1d(c,tc,382,0,110),374);
+  setT(r,'t2a',p1d(c,tc,900,110,-30),374);setT(r,'t2b',p1d(c,tc,958,0,55),368);
+  setT(r,'t3a',p1d(c,tc,330,120,48),644);setT(r,'t3b',p1d(c,tc,388,0,48),638);
+  setT(r,'t4a',p1d(c,tc,900,0,-95),644);setT(r,'t4b',p1d(c,tc,958,0,75),638)}
+});
+
+S({title:'¿Cómo saber qué tipo de choque es?',
+html:`
+${LI(90,190,1,'Calcula <i>K</i><sub>antes</sub>: suma ½ <i>m v</i>² de <b>todos</b> los cuerpos.',0)}
+${LI(90,270,2,'Calcula <i>K</i><sub>después</sub> igual, con las velocidades prima.',1)}
+${LI(90,350,3,'Compara:',2)}
+${Q(160,420,'K_{antes} = K_{después}  →  {{elástico}}',2,'s')}
+${Q(160,480,'K_{después} < K_{antes}  →  {{inelástico}}',2,'s')}
+${Q(160,540,'{{quedan juntos}}  →  {{perfectamente inelástico}}',2,'s')}
+${N(90,620,1100,'En 2D usa la rapidez: <i>v</i>² = <i>v<sub>x</sub></i>² + <i>v<sub>y</sub></i>². Y <b>nunca</b> sumes energías con signo.',3)}`,
+beats:[
+`Entonces, si te preguntan qué tipo de choque fue, el procedimiento es siempre el mismo. Uno: calcula la energía cinética total antes del choque, sumando un medio m v al cuadrado de todos los cuerpos que se mueven.`,
+`Dos: calcula la energía cinética total después del choque, de la misma forma, usando las velocidades prima.`,
+`Tres: compara. Si son iguales, el choque es elástico. Si la de después es menor, es inelástico. Y si además los cuerpos quedaron pegados, es perfectamente inelástico.`,
+`Dos cuidados. En dos dimensiones, v al cuadrado es la rapidez al cuadrado: la componente x al cuadrado más la componente y al cuadrado. Y nunca le pongas signo a una energía cinética. Es siempre positiva, aunque el cuerpo vaya hacia la izquierda.`]
+});
+
+S({title:'Choque elástico en 1D: las dos ecuaciones',
+html:`
+${Q(90,175,'{{momento:}} m_1 v_1 + m_2 v_2 = m_1 v_1′ + m_2 v_2′',0,'s')}
+${Q(90,240,`{{energía:}} ${fr('1','2')}m_1 v_1^2 + ${fr('1','2')}m_2 v_2^2 = ${fr('1','2')}m_1 v_1′^2 + ${fr('1','2')}m_2 v_2′^2`,1,'xs')}
+${N(90,318,700,'Caso común: el cuerpo 2 parte en reposo (<i>v</i><sub>2</sub> = 0).',2)}
+${Q(90,370,'m_1 (v_1 − v_1′) = m_2 v_2′',2,'s')}
+${Q(90,430,'m_1 (v_1 − v_1′)(v_1 + v_1′) = m_2 v_2′^2',3,'s')}
+${Q(90,505,'v_1 + v_1′ = v_2′',4,'s box')}
+${Q(720,370,`v_1′ = ${fr('m_1 − m_2','m_1 + m_2')} v_1`,5,'s')}
+${Q(720,470,`v_2′ = ${fr('2 m_1','m_1 + m_2')} v_1`,5,'s')}
+${Q(720,580,'m_1 = m_2  ⇒  v_1′ = 0 ,  v_2′ = v_1',6,'s box')}
+${N(90,600,580,'No hace falta memorizarlas: sí hay que saber <b>plantear</b> las dos ecuaciones.',7)}`,
+beats:[
+`La clase 16 plantea esta pregunta: si dos masas chocan de forma elástica, ¿con qué velocidades salen? Para responder se plantean dos ecuaciones. Una de momento y otra de energía. Como hay dos incógnitas, v 1 prima y v 2 prima, con dos ecuaciones alcanza.`,
+`Ecuación uno, momento: m 1 v 1 más m 2 v 2, igual a m 1 v 1 prima más m 2 v 2 prima. Ecuación dos, energía cinética: un medio m 1 v 1 al cuadrado más un medio m 2 v 2 al cuadrado, igual a lo mismo con las velocidades prima. Los un medio aparecen en todos los términos, así que se cancelan.`,
+`Hagamos el caso más común: el cuerpo 2 parte en reposo, v 2 igual a cero. En la ecuación de momento, juntamos todo lo de la masa 1 a la izquierda: m 1 por, v 1 menos v 1 prima, igual a m 2 v 2 prima.`,
+`En la de energía hacemos lo mismo: m 1 por, v 1 al cuadrado menos v 1 prima al cuadrado, igual a m 2 v 2 prima al cuadrado. Y la diferencia de cuadrados se factoriza: v 1 menos v 1 prima, por v 1 más v 1 prima.`,
+`Ahora divide la ecuación de energía por la de momento. El m 1, y el paréntesis v 1 menos v 1 prima, se cancelan arriba y abajo. Y a la derecha, m 2 v 2 prima al cuadrado dividido por m 2 v 2 prima, da v 2 prima. Queda algo muy simple: v 1 más v 1 prima igual a v 2 prima.`,
+`Con esa ecuación y la de momento, despejas y llegas a dos fórmulas. v 1 prima es: m 1 menos m 2, sobre m 1 más m 2, por v 1. Y v 2 prima es: 2 m 1, sobre m 1 más m 2, por v 1.`,
+`Caso especial importante: si las masas son iguales, v 1 prima da cero y v 2 prima da v 1. Intercambian velocidades: la que venía se detiene y la otra sale con la misma rapidez. Es lo que pasa en el pool cuando le pegas a una bola de frente.`,
+`No necesitas memorizar estas fórmulas: la clase no las pide. Pero sí tienes que saber plantear las dos ecuaciones, momento y energía. Y las fórmulas son útiles para revisar tus respuestas. Las vamos a usar para comprobar el ejercicio de los autos.`]
+});
+/* ===================== CH4 AUTOS ===================== */
+CH('Choque entre automóviles','Clase 16 · Ejercicio','Capítulo cuatro: el ejercicio de la clase 16, el choque entre dos autos. Lo resolvemos completo, con las tres preguntas de la clase.');
+
+S({title:'El enunciado',
+html:`${svg(`
+${ttl(640,188,'ANTES DEL CHOQUE',0)}
+${gnd(80,1200,330,0)}
+${car(330,330,150,'B','1200 kg',0)}${car(800,330,200,'A','1800 kg',0)}
+${arr(420,240,540,240,'vel','v'+sb('2')+' = 20 m/s',0,[480,212])}
+${tx(1000,300,'v'+sb('1')+' = 0',0,'lab','start')}
+${sep(400,2)}
+${ttl(640,438,'DESPUÉS DEL CHOQUE',2)}
+${gnd(80,1200,600,2)}
+${car(380,600,150,'B','2',2)}${car(860,600,200,'A','1',2)}
+${tx(380,470,'v'+sb('2')+'′ = ?',2,'lab')}
+${arr(975,560,1095,560,'vel','v'+sb('1')+'′ = 16 m/s',2,[1060,528])}
+${arr(90,665,200,665,'line','+',3,[220,650])}`)}`,
+beats:[
+`El ejercicio dice así. Un auto de masa m 1 igual a 1800 kilos está detenido en un semáforo. Lo golpea por detrás un auto de masa m 2 igual a 1200 kilos. Los dos se mueven a lo largo de la misma línea.`,
+`El auto chico venía a 20 metros por segundo antes del choque. Y el auto grande, que estaba en reposo, sale a 16 metros por segundo después del choque. ¿Con qué velocidad queda el auto chico?`,
+`Paso uno del método: los dos dibujos. Arriba, justo antes del choque: el chico a 20, el grande quieto. Abajo, justo después: el grande a 16 hacia adelante, y el chico con una velocidad desconocida.`,
+`Paso dos: el sentido positivo. Elegimos hacia la derecha, que es hacia donde iba el auto chico. Lo anotamos con una flecha y un signo más.`]
+});
+
+S({title:'Planteamos la conservación',
+html:`${svg(`
+${ttl(300,190,'ANTES',0)}${ttl(300,440,'DESPUÉS',2)}
+${arr(90,250,490,250,'mom','p'+sb('2,i'),0,[290,222])}
+${tx(300,290,'p'+sb('1,i')+' = 0',0,'sm')}
+${arr(90,500,570,500,'mom','p'+sb('1,f'),2,[330,472])}
+${arr(570,560,490,560,'mom','p'+sb('2,f'),5,[530,592])}
+${arr(90,630,490,630,'acc','p'+sb('total'),6,[290,660],'stroke-width:6')}`)}
+${Q(700,180,'p_{2,i} = 1200 · 20 = 24 000 [kg·m/s]',1,'xs')}
+${Q(700,235,'p_{1,i} = 0',1,'xs')}
+${Q(700,300,'p_{1,f} = 1800 · 16 = 28 800 [kg·m/s]',2,'xs')}
+${Q(700,370,'m_2 v_{2,i} = m_1 v_{1,f} + m_2 v_{2,f}',3,'xs')}
+${Q(700,445,`v_{2,f} = ${fr('m_2 v_{2,i} − m_1 v_{1,f}','m_2')}`,4,'xs')}
+${Q(700,535,`v_{2,f} = ${fr('24 000 − 28 800','1200')} = −4 [m/s]`,5,'xs box')}`,
+beats:[
+`Paso tres: el momento de cada auto antes del choque. El auto chico: masa por velocidad, 1200 por 20, que da 24 mil kilogramo metro por segundo. El grande está quieto, así que su momento es cero. Momento total antes: 24 mil.`,
+`Después del choque, el auto grande tiene un momento de 1800 por 16, que da 28 mil 800.`,
+`Mira algo raro: el grande, solo, ya tiene más momento que todo el sistema antes del choque. 28 mil 800 es más que 24 mil. Entonces el auto chico tiene que compensar con momento negativo.`,
+`Paso cuatro: igualamos. Momento antes, m 2 v 2 inicial, igual a momento después, m 1 v 1 final más m 2 v 2 final. El término del auto grande antes no aparece porque es cero.`,
+`Despejamos v 2 final: pasamos m 1 v 1 final restando al otro lado, y dividimos todo por m 2. Queda: m 2 v 2 inicial menos m 1 v 1 final, dividido por m 2.`,
+`Reemplazamos: 24 mil menos 28 mil 800, que da menos 4 mil 800, dividido por 1200. Resultado: menos 4 metros por segundo. El signo menos dice que el auto chico rebota hacia atrás, a 4 metros por segundo.`,
+`Comprobemos con las flechas: 28 mil 800 hacia adelante, menos 4 mil 800 hacia atrás, suma 24 mil. Exactamente el momento total de antes. Se conservó.`]
+});
+
+S({title:'¿Qué tipo de colisión fue?',
+html:`
+${Q(90,190,`K_{antes} = ${fr('1','2')} · 1200 · 20^2 = 240 000 [J]`,0,'s')}
+${Q(90,290,`K_{después} = ${fr('1','2')} · 1800 · 16^2 + ${fr('1','2')} · 1200 · (−4)^2`,1,'s')}
+${Q(90,380,'K_{después} = 230 400 + 9 600 = 240 000 [J]',2,'s')}
+${Q(90,470,'K_{antes} = K_{después}  ⇒  {{¡elástica!}}',3,'l box')}
+${Q(90,590,`{{Chequeo:}} v_1′ = ${fr('2 · 1200','3000')} · 20 = 16   ,   v_2′ = ${fr('1200 − 1800','3000')} · 20 = −4`,4,'xs')}`,
+beats:[
+`La clase pregunta: ¿qué tipo de colisión fue esta? Para saberlo, comparamos la energía cinética. Antes del choque solo se mueve el auto chico: un medio por 1200 por 20 al cuadrado. 20 al cuadrado es 400, por 1200 es 480 mil, y la mitad es 240 mil joule.`,
+`Después se mueven los dos: un medio por 1800 por 16 al cuadrado, más un medio por 1200 por menos 4 al cuadrado. Ojo: menos 4 al cuadrado es más 16. La energía no tiene signo.`,
+`El primer término da 230 mil 400 y el segundo 9 mil 600. Suman 240 mil joule.`,
+`¡Es exactamente la misma energía cinética! Así que, con estos datos, el choque es elástico. Es lo curioso que te anticipé: en la vida real un choque de autos casi nunca es elástico, pero los números del ejercicio dan justo eso.`,
+`Y podemos comprobarlo con las fórmulas del choque elástico que vimos. v 1 prima es 2 por 1200, sobre 3000, por 20: da 16. Y v 2 prima es 1200 menos 1800, sobre 3000, por 20: da menos 4. Coinciden perfecto con lo que calculamos.`]
+});
+
+S({title:'El impulso sobre cada auto',
+html:`
+${Q(90,180,'I_1 = p_{1,f} − p_{1,i} = 28 800 − 0',0,'s')}
+${Q(90,245,'I_1 = +28 800 [N·s]',0,'s box')}
+${Q(90,350,'I_2 = p_{2,f} − p_{2,i} = 1200 · (−4) − 24 000',1,'s')}
+${Q(90,415,'I_2 = −4 800 − 24 000 = −28 800 [N·s]',1,'s box')}
+${Q(90,525,'I_1 + I_2 = 0',2,'l acc')}
+${N(520,530,700,'Iguales y opuestos: es la <b>tercera ley de Newton</b>. Por eso el momento total no cambia.',2)}
+${Q(90,620,`{{Si duró}} 0,1 [s]: F = ${fr('28 800','0,1')} = 288 000 [N]`,3,'xs dim')}`,
+beats:[
+`Última pregunta de la clase: ¿qué impulso recibió cada auto? El impulso es el cambio de momento: final menos inicial. Para el auto grande: 28 mil 800 menos cero. Más 28 mil 800 newton segundo, hacia adelante.`,
+`Para el auto chico: final, 1200 por menos 4, que es menos 4 mil 800. Menos el inicial, 24 mil. Total: menos 28 mil 800 newton segundo, hacia atrás.`,
+`Los dos impulsos tienen el mismo tamaño y signos opuestos. Suman cero. No es casualidad: es la tercera ley de Newton. Cada auto empujó al otro con la misma fuerza durante el mismo tiempo. Por eso el momento total se conservó.`,
+`Y si el choque hubiera durado, por ejemplo, una décima de segundo, la fuerza promedio sería el impulso dividido por el tiempo: 288 mil newton. Ese dato del tiempo es inventado, solo para que veas el tamaño de las fuerzas en un choque.`]
+});
+
+/* ===================== CH5 PÉNDULO BALÍSTICO ===================== */
+CH('Péndulo balístico','Clase 16','Capítulo cinco: el péndulo balístico. Es el ejemplo perfecto de un problema en dos etapas: primero momento, después energía.');
+
+S({title:'El aparato',
+html:`${svg(`
+${ceil(260,560,180,0)}
+<line id="pb_w1" x1="340" y1="180" class="ln" style="stroke-width:2"/><line id="pb_w2" x1="480" y1="180" class="ln" style="stroke-width:2"/>
+<g id="pb_blk">${cbox(-80,-55,160,110,'B','m₂')}</g>
+<g id="pb_bul"><rect x="-16" y="-6" width="32" height="12" rx="6" style="fill:var(--A)"/></g>
+${darr('pb_v','vel','v'+sb('1'),0)}
+<g data-b="1"><line x1="500" y1="535" x2="600" y2="535" class="ln2 dashl"/><line x1="500" y1="500" x2="600" y2="500" class="ln2 dashl"/></g>
+${dim(580,535,580,500,'',1)}${tx(620,517,'h',1,'lab')}`)}
+${N(740,190,470,'Una bala de masa <b>m₁</b> con rapidez <b>v₁</b> se incrusta en un bloque de madera <b>m₂</b> colgado de alambres livianos.',0)}
+${N(740,330,470,'El conjunto se balancea y sube una altura <b>h</b>.',1)}
+${N(740,430,470,'¿Cómo obtener <b>v₁</b> midiendo <b>h</b>?',2,'acc')}
+${P(740,530,'1 · choque → momento','mom',3)}
+${P(740,590,'2 · subida → energía','K',3)}`,
+beats:[
+`El péndulo balístico es un aparato que sirve para medir la rapidez de algo que va muy rápido, como una bala. Se dispara una bala de masa m 1 contra un bloque grande de madera, de masa m 2, que cuelga de unos alambres livianos.`,
+`La bala se incrusta en el bloque, y el conjunto, bloque con bala, se balancea hacia arriba como un columpio, hasta subir una altura h.`,
+`La pregunta de la clase es: ¿cómo se determina la rapidez de la bala a partir de una medición de h? Medir una altura es fácil. Medir la rapidez de una bala, no.`,
+`La clave es separar el problema en dos etapas. Etapa uno: el choque, que dura un instante. Ahí se usa momento. Etapa dos: la subida, que dura un buen rato. Ahí se usa energía. Nunca se mezclan.`],
+loop(st,r){const P=6,c=st%P,tc=1.4;let bx=c<tc?120+(215)*(c/tc):410;const sw=c<tc?0:Math.sin(Math.min(1,(c-tc)/1.3)*Math.PI/2)*28*(c<5?1:Math.max(0,1-(c-5)));
+  const a=sw*Math.PI/180,L=300,cx=410,cy=180;const X=cx+L*Math.sin(a),Y=cy+L*Math.cos(a);setT(r,'pb_blk',X,Y+55);
+  ['pb_w1','pb_w2'].forEach((id,k)=>{const e=r.querySelector('#'+id);if(e){e.setAttribute('x2',X+(k?70:-70));e.setAttribute('y2',Y)}});
+  setT(r,'pb_bul',c<tc?bx:X-20,c<tc?535:Y+55);const v=r.querySelector('#pb_v');if(v)v.style.opacity=c<tc?1:0;setArr(r,'pb_v',bx-10,500,bx+70,500)}
+});
+
+S({title:'Etapa 1: el choque (momento)',
+html:`${svg(`
+${ttl(320,190,'JUSTO ANTES',0)}
+<rect x="70" y="244" width="34" height="12" rx="6" style="fill:var(--A)" data-b="0"/>
+${arr(115,250,215,250,'vel','v'+sb('1'),0,[165,222])}
+${cbox(260,195,160,110,'B','m₂',0)}${tx(340,330,'en reposo',0,'sm')}
+${ttl(320,420,'JUSTO DESPUÉS',1)}
+${cbox(240,440,180,110,'B','m₁ + m₂',1)}
+${arr(430,495,540,495,'vel','V',1,[565,495])}`)}
+${Q(700,190,'m_1 v_1 + m_2 · 0 = (m_1 + m_2) V',2,'s')}
+${Q(700,280,`V = ${fr('m_1 v_1','m_1 + m_2')}`,3,'l box')}
+${N(700,400,500,'<b>No</b> se usa energía aquí: la bala se incrusta, es <b>perfectamente inelástico</b>. Casi toda su energía se va en calor y en romper madera.',4)}`,
+beats:[
+`Etapa uno, el choque. Dibujamos justo antes: la bala con rapidez v 1 y el bloque en reposo. Justo después: la bala ya está dentro del bloque, y los dos se mueven juntos con una misma velocidad, que llamamos V mayúscula.`,
+`El choque dura un instante, así que el momento se conserva. Antes: m 1 v 1, más m 2 por cero. Después: como se mueven juntos, la masa total m 1 más m 2, por V.`,
+`Despejamos V: es m 1 v 1, dividido por m 1 más m 2. Como el bloque es mucho más pesado que la bala, V es mucho más chica que v 1.`,
+`¿Por qué no usamos energía en esta etapa? Porque la bala se incrusta: es un choque perfectamente inelástico. Casi toda la energía de la bala se transforma en calor y en romper la madera. Si igualaras energías aquí, el resultado saldría muy mal.`]
+});
+
+S({title:'Etapa 2: la subida (energía)',
+html:`${svg(`
+${ceil(150,450,180,0)}
+<line x1="300" y1="180" x2="300" y2="480" class="ln2 dashl" data-b="0"/>
+${cbox(230,480,140,90,'B','',0)}
+<g data-b="0"><path d="M300 180 L 470 425" class="ln" style="stroke-width:2"/>${cbox(400,390,140,90,'B','')}</g>
+${dim(600,525,600,435,'h',0,630,480)}
+<g data-b="0"><line x1="370" y1="525" x2="610" y2="525" class="ln2 dashl"/><line x1="540" y1="435" x2="610" y2="435" class="ln2 dashl"/></g>
+${tx(300,610,'abajo: solo K',1,'smacc')}${tx(470,360,'arriba: solo U'+sb('g'),2,'smacc')}`)}
+${Q(720,190,`${fr('1','2')} (m_1 + m_2) V^2 = (m_1 + m_2) g h`,3,'s')}
+${Q(720,300,'V^2 = 2 g h',4,'l')}
+${Q(720,390,`V = ${rt('2 g h')}`,4,'l box')}
+${N(720,500,500,'Aquí <b>no</b> se conserva el momento: la tensión y el peso actúan durante toda la subida.',5)}`,
+beats:[
+`Etapa dos, la subida. Justo después del choque, el conjunto bloque más bala está abajo, moviéndose con rapidez V. Luego sube hasta que se detiene, a una altura h.`,
+`Abajo, el conjunto solo tiene energía cinética. Ponemos el nivel cero de altura ahí, así que la potencial gravitatoria es cero.`,
+`Arriba, en el punto más alto, se detiene un instante. La rapidez es cero, así que solo hay energía potencial gravitatoria.`,
+`Durante la subida no hay roce, y la tensión de los alambres es siempre perpendicular al movimiento, así que no hace trabajo. La energía mecánica se conserva: un medio por la masa total por V al cuadrado, igual a la masa total por g por h.`,
+`La masa total aparece a los dos lados y se cancela. Queda V al cuadrado igual a 2 g h. Y entonces V es la raíz de 2 g h. Es la misma fórmula de la caída libre, pero al revés.`,
+`Y aquí ocurre lo contrario que en la etapa uno: el momento no se conserva durante la subida. Mientras sube, actúan la tensión y el peso, que son fuerzas externas, durante un buen rato. El conjunto se frena. Su momento cambia.`]
+});
+
+S({title:'Juntamos las dos etapas',
+html:`
+${Q(90,180,`V = ${fr('m_1 v_1','m_1 + m_2')}   {{y}}   V = ${rt('2 g h')}`,0,'s')}
+${Q(90,300,`v_1 = ${fr('m_1 + m_2','m_1')} ${rt('2 g h')}`,1,'l box')}
+${N(90,470,520,'<b>Con números inventados:</b> m₁ = 10 g, m₂ = 2,0 kg, h = 5,0 cm.',2)}
+${Q(680,180,'m_1 = 0,010 [kg] ,  h = 0,050 [m]',2,'xs')}
+${Q(680,245,`V = ${rt('2 · 10 · 0,05')} = 1,0 [m/s]`,3,'xs')}
+${Q(680,315,`v_1 = ${fr('2,010','0,010')} · 1,0 = 201 [m/s]`,4,'xs box')}
+${Q(680,420,'K_{bala} = ½ · 0,010 · 201^2 ≈ 202 [J]',5,'xs')}
+${Q(680,480,'K_{después} = ½ · 2,01 · 1,0^2 ≈ 1 [J]',5,'xs')}
+${N(680,560,520,'¡Se pierde más del <b>99 %</b> de la energía en el choque!',5,'acc')}`,
+beats:[
+`Ahora juntamos las dos etapas. De la etapa uno tenemos V en función de la rapidez de la bala. De la etapa dos tenemos V en función de la altura. Las dos son la misma V, la velocidad justo después del choque.`,
+`Igualamos y despejamos v 1: v 1 es igual a m 1 más m 2, dividido por m 1, por la raíz de 2 g h. Con medir h y las masas, ya sabes la rapidez de la bala.`,
+`Pongamos números. La clase no los da, así que estos los inventamos para practicar: una bala de 10 gramos, un bloque de 2 kilos, y el bloque sube 5 centímetros. Primero, como siempre, pasamos a kilos y metros: 0,010 kilos y 0,050 metros.`,
+`V es la raíz de 2 por 10 por 0,05. Eso es la raíz de 1, o sea 1 metro por segundo.`,
+`La rapidez de la bala: la masa total, 2,010, dividida por 0,010, que da 201, por 1. La bala iba a 201 metros por segundo.`,
+`Y mira la energía. La bala tenía un medio por 0,01 por 201 al cuadrado: unos 202 joule. Después del choque, el conjunto tiene un medio por 2,01 por 1 al cuadrado: apenas 1 joule. Se perdió más del 99 por ciento. Por eso, en el choque, jamás se iguala energía.`]
+});
+
+/* ===================== CH6 CUÑA ===================== */
+CH('Bloque y cuña','Clase 16 · Ejercicio propuesto','Capítulo seis: el ejercicio propuesto de la clase 16, el bloque que baja por una cuña que se puede mover. Mezcla momento y energía, pero de otra forma.');
+
+S({title:'El enunciado',
+html:`${svg(`
+${ttl(320,190,'(a) AL INICIO',0)}
+${gnd(80,560,520,0)}
+<g data-b="0"><path d="M140 520 L140 270 C 200 270, 230 330, 260 410 C 290 490, 330 520, 400 520 Z" style="fill:#101016;stroke:var(--B);stroke-width:3.5"/>${tx(200,460,'m₂',null,'lab')}</g>
+${cbox(140,236,34,34,'A','',0)}${tx(157,215,'m₁',0,'lab')}
+${dim(110,520,110,270,'h',0,86,395)}
+${ttl(940,190,'(b) AL FINAL',1)}
+${gnd(660,1220,520,1)}
+<g data-b="1"><path d="M720 520 L720 270 C 780 270, 810 330, 840 410 C 870 490, 910 520, 980 520 Z" style="fill:#101016;stroke:var(--B);stroke-width:3.5"/></g>
+${arr(800,240,700,240,'vel','v'+sb('2'),1,[680,240])}
+${cbox(1050,486,34,34,'A','',1)}
+${arr(1095,470,1195,470,'vel','4,00 m/s',1,[1150,440])}`)}
+${N(90,575,1100,'m₁ = 0,50 kg se suelta del reposo · cuña m₂ = 3,00 kg · todo sin roce · <b>a)</b> velocidad de la cuña · <b>b)</b> altura h',2)}`,
+beats:[
+`El ejercicio propuesto de la clase 16. Un bloque pequeño, de masa m 1 igual a 0,50 kilos, se suelta desde el reposo en lo alto de una cuña curva, de masa m 2 igual a 3,00 kilos. La cuña no está pegada al suelo: se apoya en una superficie horizontal sin roce, así que se puede mover. Y la cuña tampoco tiene roce.`,
+`Cuando el bloque deja la cuña, se mide su velocidad: 4,00 metros por segundo hacia la derecha. Mientras el bloque bajaba empujando la cuña, la cuña se fue hacia la izquierda.`,
+`Nos preguntan dos cosas. a: ¿cuál es la velocidad de la cuña después de que el bloque llega al suelo? Y b: ¿cuál es la altura h de la cuña?`]
+});
+
+S({title:'¿Qué se conserva?',
+html:`${svg(`
+${gnd(80,600,560,0)}
+<g data-b="0"><rect x="120" y="230" width="460" height="345" rx="18" class="ln2 dashl" style="stroke:var(--acc)"/></g>
+<g data-b="0"><path d="M170 560 L170 330 C 230 330, 260 390, 290 470 C 320 545, 360 560, 430 560 Z" style="fill:#101016;stroke:var(--B);stroke-width:3.5"/></g>
+${cbox(262,400,34,34,'A','',0)}
+<g data-b="1">${arr(279,417,279,490,'peso','',null)}${arr(250,545,250,625,'peso','',null)}${arr(380,625,380,565,'normal','',null)}${tx(410,600,'N piso',null,'sm','start')}</g>`)}
+${N(700,190,520,'<b>Sistema:</b> bloque + cuña.',0)}
+${N(700,260,520,'Externas: pesos y normal del piso. <b>Todas verticales.</b>',1)}
+${Q(700,350,'p_x {{se conserva}}',2,'l acc')}
+${Q(700,430,'p_y {{no se conserva}}',3,'s dim')}
+${N(700,500,520,'Sin roce en ninguna parte: <b>la energía mecánica se conserva</b>.',4)}`,
+beats:[
+`Antes de calcular, la pregunta más importante de este problema: ¿qué se conserva? Tomamos como sistema el bloque más la cuña, juntos.`,
+`¿Qué fuerzas externas actúan? El peso del bloque, el peso de la cuña, y la normal que el piso le hace a la cuña. Las tres son verticales. La fuerza entre el bloque y la cuña es interna, porque los dos están dentro del sistema.`,
+`Como no hay ninguna fuerza externa horizontal, el momento horizontal del sistema se conserva. Durante toda la bajada, no solo en un instante.`,
+`El momento vertical, en cambio, no se conserva. El bloque empieza quieto y gana velocidad hacia abajo, mientras baja, porque el peso no está compensado. Por eso solo usamos el eje x.`,
+`Y como no hay roce en ninguna parte, no se pierde energía: la energía mecánica del sistema se conserva. Así que en este problema usamos las dos cosas: momento en x para la pregunta a, y energía para la pregunta b.`]
+});
+
+S({title:'a) La velocidad de la cuña',
+html:`
+${Q(90,190,'{{inicio:}} p_x = 0',0,'s')}
+${N(560,195,620,'Todo parte en reposo.',0)}
+${Q(90,270,'0 = m_1 v_1 + m_2 v_2',1,'l')}
+${Q(90,380,`v_2 = −${fr('m_1 v_1','m_2')} = −${fr('0,50 · 4,00','3,00')}`,2,'l')}
+${Q(90,510,'v_2 = −0,667 [m/s]',3,'l box')}
+${N(600,515,600,'Hacia la <b>izquierda</b>, más lento que el bloque porque es más pesado.',3)}`,
+beats:[
+`Pregunta a. Al principio todo está en reposo: el bloque y la cuña. Así que el momento horizontal total al inicio es cero.`,
+`Como se conserva, al final también tiene que ser cero. Entonces: cero es igual a m 1 v 1 más m 2 v 2. El momento del bloque hacia la derecha tiene que cancelar el momento de la cuña hacia la izquierda.`,
+`Despejamos v 2: es menos m 1 v 1, dividido por m 2. Reemplazamos: menos 0,50 por 4,00, dividido por 3,00.`,
+`Da menos 0,667 metros por segundo. El signo menos confirma que la cuña se mueve hacia la izquierda. Y va mucho más lento que el bloque, porque es seis veces más pesada.`]
+});
+
+S({title:'b) La altura de la cuña',
+html:`
+${Q(90,180,'E_{inicio} = m_1 g h',0,'s')}
+${N(520,185,680,'Bloque arriba y quieto; cuña quieta.',0)}
+${Q(90,250,`E_{final} = ${fr('1','2')} m_1 v_1^2 + ${fr('1','2')} m_2 v_2^2`,1,'s')}
+${Q(90,340,'0,50 · 10 · h = ½ · 0,50 · 4,00^2 + ½ · 3,00 · 0,667^2',2,'xs')}
+${Q(90,400,'5,0 h = 4,00 + 0,667',3,'s')}
+${Q(90,470,`h = ${fr('4,667','5,0')} = 0,933 [m]`,3,'l box')}
+${N(90,590,540,'Con g = 9,8 da h ≈ 0,952 m.',4)}
+${P(700,470,'✕ olvidar la K de la cuña','B',5)}
+${Q(700,530,`h = ${fr('v_1^2','2g')} = 0,80 [m]  {{está mal}}`,5,'xs dim')}`,
+beats:[
+`Pregunta b, la altura. Usamos conservación de la energía mecánica, con el nivel cero en el suelo. Al inicio, el bloque está a la altura h y quieto, y la cuña también está quieta. La única energía es la potencial del bloque: m 1 g h.`,
+`Al final, el bloque está en el suelo, así que no tiene potencial. Pero ahora se mueven los dos: el bloque y la cuña. Hay dos energías cinéticas: un medio m 1 v 1 al cuadrado, más un medio m 2 v 2 al cuadrado.`,
+`Igualamos y reemplazamos: 0,50 por 10 por h, igual a un medio por 0,50 por 4 al cuadrado, más un medio por 3,00 por 0,667 al cuadrado.`,
+`A la izquierda queda 5 h. A la derecha, el bloque aporta 4,00 joule y la cuña 0,667 joule. Total 4,667. Entonces h es 4,667 dividido por 5: 0,933 metros.`,
+`Si tu profesor usa g igual a 9,8, la altura da unos 0,952 metros. Revisa qué valor de g pide el enunciado del control.`,
+`El error típico aquí es olvidarse de que la cuña también se mueve, y hacer como si fuera fija: h igual a v al cuadrado sobre 2 g, que da 0,80 metros. Eso está mal. Una parte de la energía del bloque se la llevó la cuña.`]
+});
+/* ===================== CH7 2D: POOL ===================== */
+CH('Momento lineal en 2D','Clase 18','Capítulo siete: el momento lineal en dos dimensiones. La idea es la misma de antes, pero ahora trabajamos un eje a la vez.');
+
+S({title:'Un eje a la vez',
+html:`${svg(`
+${axesG(150,560,330,0,'x','y')}
+${arr(150,560,410,360,'mom','p',0,[430,340])}
+<g data-b="1"><line x1="410" y1="360" x2="410" y2="560" class="ln2 dashl"/><line x1="150" y1="360" x2="410" y2="360" class="ln2 dashl"/>
+${arr(150,560,410,560,'mom','',null,null,'opacity:.75')}${arr(150,560,150,360,'mom','',null,null,'opacity:.75')}
+${tx(280,600,'p'+sb('x')+' = p cos θ',null,'lab')}${tx(70,450,'p'+sb('y'),null,'lab')}</g>
+${arc(150,560,70,0,37.6,'θ',1,96)}`)}
+${Q(640,190,'p_x = m v cos θ',1,'s')}
+${Q(640,250,'p_y = m v sen θ',1,'s')}
+${N(640,320,560,'θ medido desde el eje <i>x</i>. Si el vector apunta hacia abajo o hacia la izquierda, la componente es <b>negativa</b>.',2)}
+${Q(640,450,'Σ p_x^{antes} = Σ p_x^{después}',3,'s box')}
+${Q(640,535,'Σ p_y^{antes} = Σ p_y^{después}',3,'s box')}
+${N(640,620,560,'Dos ecuaciones: puedes despejar dos incógnitas.',4)}`,
+beats:[
+`En dos dimensiones el momento sigue siendo masa por velocidad. Pero ahora la flecha puede apuntar en diagonal.`,
+`Igual que con las fuerzas, la descomponemos en sus componentes. La componente x es m v coseno theta, y la componente y es m v seno theta, donde theta es el ángulo medido desde el eje x.`,
+`Ojo con los signos: si el vector apunta hacia abajo, su componente y es negativa. Si apunta hacia la izquierda, su componente x es negativa. Siempre mira el dibujo antes de poner el signo.`,
+`Y ahora lo importante: la conservación del momento vale en cada eje por separado. La suma de las componentes x antes es igual a la suma de las componentes x después. Y lo mismo, por separado, con las componentes y.`,
+`Eso te da dos ecuaciones. Y con dos ecuaciones puedes despejar dos incógnitas, por ejemplo dos rapideces, o una rapidez y un ángulo.`]
+});
+
+S({title:'Ejemplo: jugando pool',
+html:`${svg(`
+${ttl(310,190,'FIG. 1 · ANTES',0)}
+<line x1="70" y1="330" x2="560" y2="330" class="ln2 dashl" data-b="0"/>
+${cball(160,330,24,'normal','',0)}${arr(195,330,300,330,'vel','v'+sb('b')+' = 8,0 m/s',0,[250,296])}
+${cball(440,330,24,'ela','1',0)}${tx(440,380,'v'+sb('1')+' = 0',0,'sm')}
+${ttl(940,190,'FIG. 2 · DESPUÉS',1)}
+<line x1="720" y1="450" x2="1180" y2="450" class="ln2 dashl" data-b="1"/>
+${dot(900,450,1)}
+${arr(900,450,1100,335,'vel','v'+sb('b')+'′',1,[1125,318])}
+${arr(900,450,985,597,'vel','v'+sb('1')+'′',1,[1012,612])}
+${arc(900,450,70,0,30,'30°',1,104)}${arc(900,450,58,-60,0,'60°',1,92)}`)}
+${N(90,450,560,'Dos bolas iguales de <b>0,25 kg</b>. La amarilla está en reposo. La blanca sale a 30° hacia arriba y la amarilla a 60° hacia abajo.',2)}
+${N(90,590,560,'¿Con qué velocidades salen? ¿Es elástico?',3,'acc')}`,
+beats:[
+`El ejemplo de la clase 18. Una bola blanca choca con la bola número 1, la amarilla, que está en reposo. Las dos tienen la misma masa, 0,25 kilos. La blanca va hacia la derecha a 8,0 metros por segundo.`,
+`Después del choque, la blanca sale desviada 30 grados hacia arriba de su dirección original, y la amarilla sale 60 grados hacia abajo.`,
+`Paso uno del método: los dos dibujos, que ya tenemos. Elegimos el eje x hacia la derecha, en la dirección original de la blanca, y el eje y hacia arriba.`,
+`Las preguntas son: ¿con qué velocidades se mueven las bolas después del choque? Y, ¿es elástica esta colisión? La clase muestra dos métodos para resolverlo. Vamos con los dos.`]
+});
+
+S({title:'Método 1: por componentes',
+html:`
+${Q(90,180,`${vc('p')}_{antes} = m v_b î = m · 8 î`,0,'s')}
+${Q(90,255,`${vc('p')}_{después} = m v_b′ (cos30° î + sen30° ĵ) + m v_1′ (cos60° î − sen60° ĵ)`,1,'xs')}
+${N(90,315,1100,'La amarilla va <b>hacia abajo</b>: su componente <i>y</i> lleva signo <b>menos</b>.',1)}
+${Q(90,395,'x:  m · 8 = m v_b′ cos30° + m v_1′ cos60°',2,'s')}
+${Q(90,460,'y:  0 = m v_b′ sen30° − m v_1′ sen60°',2,'s')}
+${N(90,540,1100,'La masa <i>m</i> está en todos los términos: <b>se cancela</b>. No hacía falta el dato 0,25 kg para las velocidades.',3)}`,
+beats:[
+`Método uno, analítico, por componentes. Antes del choque solo se mueve la blanca, y va puramente en x: el momento antes es m por 8, en dirección i gorro.`,
+`Después se mueven las dos. La blanca: m v b prima, por coseno de 30 en i, más seno de 30 en j, porque va hacia arriba. La amarilla: m v 1 prima, por coseno de 60 en i, menos seno de 60 en j. El menos es porque va hacia abajo.`,
+`Ahora igualamos por ejes. Eje x: m por 8, igual a m v b prima coseno 30, más m v 1 prima coseno 60. Eje y: antes no había nada en y, así que cero es igual a m v b prima seno 30, menos m v 1 prima seno 60.`,
+`Fíjate que la masa m está en todos los términos de las dos ecuaciones. Se cancela. Para las velocidades, el dato de 0,25 kilos ni siquiera hacía falta. Lo vamos a usar recién para la energía.`]
+});
+
+S({title:'Resolvemos el sistema',
+html:`
+${Q(90,180,'y:  v_b′ sen30° = v_1′ sen60°',0,'s')}
+${Q(90,250,`v_b′ = v_1′ ${fr('sen60°','sen30°')} = ${rt('3')} v_1′`,1,'s')}
+${Q(90,345,`x:  8 = ${rt('3')} v_1′ · ${fr(rt('3'),'2')} + v_1′ · ${fr('1','2')}`,2,'s')}
+${Q(90,445,'8 = 1,5 v_1′ + 0,5 v_1′ = 2 v_1′',3,'s')}
+${Q(700,200,'v_1′ = 4,00 [m/s]',4,'l box')}
+${Q(700,320,'v_b′ = 4 ' + rt('3') + ' = 6,93 [m/s]',5,'l box')}
+${N(700,450,500,'sen 60° = √3/2 , sen 30° = 1/2 , cos 30° = √3/2 , cos 60° = 1/2',2)}`,
+beats:[
+`Resolvemos. Partimos por la ecuación y, que es la más simple. Pasamos el término negativo al otro lado: v b prima seno 30, igual a v 1 prima seno 60.`,
+`Despejamos v b prima: es v 1 prima por seno 60 dividido por seno 30. Seno 60 es raíz de 3 sobre 2, y seno 30 es un medio. Al dividir, los dos se van, y queda raíz de 3. Entonces v b prima es raíz de 3 por v 1 prima.`,
+`Ahora reemplazamos eso en la ecuación x. 8 es igual a raíz de 3 por v 1 prima, por coseno de 30, que es raíz de 3 sobre 2. Más v 1 prima por coseno de 60, que es un medio.`,
+`Raíz de 3 por raíz de 3 es 3, y dividido por 2 da 1,5. Entonces: 8 es igual a 1,5 v 1 prima más 0,5 v 1 prima. Eso es 2 v 1 prima.`,
+`Despejamos: v 1 prima es 8 dividido por 2, que da 4,00 metros por segundo. La amarilla sale a 4.`,
+`Y la blanca: v b prima es raíz de 3 por 4, que da 6,93 metros por segundo. Igual que el resultado de la clase.`]
+});
+
+S({title:'Método 2: el triángulo de momentos',
+html:`${svg(`
+${arr(120,520,620,520,'mom','p'+sb('antes'),0,[370,560])}
+${arr(120,520,495,303,'mom','p'+sb('b')+'′',1,[285,385])}
+${arr(495,303,620,520,'mom','p'+sb('1')+'′',1,[590,390])}
+${arc(120,520,70,0,30,'30°',1,100)}${arc(620,520,62,120,180,'60°',1,92)}
+<g data-b="2"><path d="M476 314 L486 331 L503 321" class="ln" style="stroke:var(--acc);stroke-width:2.5"/>${tx(495,270,'90°',null,'smacc')}</g>`)}
+${N(720,180,500,'La suma de los momentos de después forma un triángulo cerrado con el de antes.',0)}
+${Q(720,320,`${fr('m v_b','sen 90°')} = ${fr('m v_b′','sen 60°')} = ${fr('m v_1′','sen 30°')}`,3,'s')}
+${Q(720,450,'v_b′ = 8 sen60° = 6,93 [m/s]',4,'s box')}
+${Q(720,530,'v_1′ = 8 sen30° = 4,00 [m/s]',4,'s box')}`,
+beats:[
+`Método dos, geométrico. El momento de antes es una sola flecha horizontal, la de la blanca. Tamaño: m por 8.`,
+`El momento de después es la suma de dos flechas: la de la blanca, que sube a 30 grados, y la de la amarilla, que baja a 60 grados. Si las ponemos una detrás de la otra, la punta de la última tiene que llegar justo a la punta del momento de antes. Se forma un triángulo.`,
+`Los ángulos del triángulo: 30 grados abajo a la izquierda, 60 grados abajo a la derecha, y como los tres suman 180, arriba quedan 90 grados. Es un triángulo rectángulo.`,
+`Ahora usamos el teorema del seno: cada lado dividido por el seno del ángulo opuesto da lo mismo. El lado de antes, m v b, está frente al ángulo de 90. El de la blanca está frente al de 60. Y el de la amarilla frente al de 30.`,
+`Como seno de 90 es 1, queda directo: v b prima es 8 por seno de 60, 6,93. Y v 1 prima es 8 por seno de 30, 4,00. Los mismos resultados, con menos álgebra. Usa el método que te resulte más cómodo.`]
+});
+
+S({title:'¿Es elástica esta colisión?',
+html:`
+${Q(90,190,`K_{antes} = ${fr('1','2')} · 0,25 · 8^2 = 8 [J]`,0,'s')}
+${Q(90,290,`K_{después} = ${fr('1','2')} · 0,25 · 6,93^2 + ${fr('1','2')} · 0,25 · 4^2`,1,'s')}
+${Q(90,380,'K_{después} = 6 + 2 = 8 [J]',2,'s')}
+${Q(90,470,'K_{antes} = K_{después}  ⇒  {{elástica}}',3,'l box')}
+${N(720,190,500,'Dato: dos masas <b>iguales</b>, una en reposo, choque <b>elástico</b> → salen formando <b>90°</b> entre ellas.',4,'acc')}`,
+beats:[
+`Ahora sí usamos la masa, para la energía. Antes: un medio por 0,25 por 8 al cuadrado. 8 al cuadrado es 64, por 0,25 es 16, y la mitad es 8 joule.`,
+`Después: un medio por 0,25 por 6,93 al cuadrado, más un medio por 0,25 por 4 al cuadrado.`,
+`6,93 al cuadrado es 48, por 0,25 es 12, la mitad es 6 joule. Y 4 al cuadrado es 16, por 0,25 es 4, la mitad es 2 joule. Total después: 8 joule.`,
+`La energía cinética antes es igual a la de después: la colisión es elástica.`,
+`Un dato que te sirve para revisar: cuando dos masas iguales chocan de forma elástica, y una estaba en reposo, siempre salen formando un ángulo de 90 grados entre ellas. Aquí: 30 más 60, 90. Calza perfecto.`]
+});
+
+/* ===================== CH8 ACCIDENTE ===================== */
+CH('Accidente en una mañana fría','Clase 18 · Ejercicio 1','Capítulo ocho: el ejercicio uno de la clase 18. Un perito tiene que decidir si un conductor iba demasiado rápido.');
+
+S({title:'El enunciado',
+html:`${svg(`
+${ttl(300,190,'ANTES',0)}
+<line x1="70" y1="330" x2="560" y2="330" class="ln2 dashl" data-b="0"/>
+<g data-b="0"><g transform="translate(170,350)">${carG(140,'A','2m')}</g></g>${arr(250,265,350,265,'vel','v'+sb('i')+' = ?',0,[300,235])}
+<g data-b="0"><g transform="translate(450,350)">${carG(100,'B','m')}</g></g>${tx(450,395,'detenido',0,'sm')}
+${ttl(930,190,'DESPUÉS',1)}
+<line x1="680" y1="430" x2="1200" y2="430" class="ln2 dashl" data-b="1"/>
+${dot(840,430,1)}
+${arr(840,430,1030,320,'vel','v'+sb('c'),1,[1055,305])}
+${arr(840,430,1010,573,'vel','70 km/h',1,[1050,600])}
+${arc(840,430,72,0,30,'30°',1,104)}${arc(840,430,60,-40,0,'40°',1,94)}
+${tx(1060,350,'camioneta',1,'sm','start')}${tx(910,630,'compacto',1,'sm','start')}`)}
+${N(90,440,560,'Límite por hielo: <b>60 km/h</b>. El compacto tiene <b>la mitad</b> de la masa de la camioneta.',2)}
+${N(90,560,560,'Desvíos hacia lados <b>opuestos</b>: es la única forma de que el momento en <i>y</i> se anule.',3)}`,
+beats:[
+`El ejercicio uno de la clase 18. Un conductor va en su camioneta por una carretera con hielo, donde la velocidad máxima permitida es 60 kilómetros por hora. De repente se encuentra con un auto compacto detenido, que tiene más o menos la mitad de la masa de la camioneta, y choca con él.`,
+`Llega un perito y anota: la camioneta se desvió 30 grados de su dirección original, y el compacto se desvió 40 grados. Por las marcas en el pavimento, el compacto salió a 70 kilómetros por hora justo después del choque. El conductor no recuerda a qué velocidad iba. ¿Puede el perito saber si es culpable?`,
+`Llamemos m a la masa del compacto. Entonces la camioneta tiene masa 2 m. No conocemos m, pero no importa: se va a cancelar.`,
+`Un detalle: los dos vehículos tienen que desviarse hacia lados opuestos. Si los dos se fueran hacia arriba, el momento en y después sería positivo, pero antes era cero. Por eso dibujamos la camioneta hacia arriba y el compacto hacia abajo.`]
+});
+
+S({title:'La ecuación en y',
+html:`
+${Q(90,180,'{{antes:}} p_y = 0',0,'s')}
+${Q(90,260,'0 = 2m v_c sen30° − m · 70 sen40°',1,'s')}
+${Q(90,350,'2m v_c sen30° = m · 70 sen40°',2,'s')}
+${Q(90,440,`v_c = ${fr('70 sen40°','2 sen30°')} = ${fr('70 · 0,643','2 · 0,5')}`,3,'s')}
+${Q(90,560,'v_c = 45,0 [km/h]',4,'l box')}
+${N(720,190,500,'Las <b>m</b> se cancelan. Y los km/h están a los dos lados: <b>no hay que pasarlos a m/s</b>.',5)}`,
+beats:[
+`Partimos por el eje y, porque tiene una sola incógnita. Antes del choque, la camioneta iba en línea recta en x, y el compacto estaba quieto. El momento en y antes es cero.`,
+`Después: la camioneta aporta 2 m por v c por seno de 30, hacia arriba, positivo. El compacto aporta m por 70 por seno de 40, hacia abajo, negativo. La suma tiene que dar cero.`,
+`Pasamos el término negativo al otro lado: 2 m v c seno 30 igual a m por 70 seno 40.`,
+`La m está a los dos lados, se cancela. Despejamos v c: 70 seno 40, dividido por 2 seno 30. Seno de 40 es 0,643, y 2 por seno de 30 es 2 por 0,5, que es 1.`,
+`Da 45,0 kilómetros por hora. Esa es la rapidez de la camioneta justo después del choque.`,
+`Dos comentarios. Las m se cancelaron, por eso no necesitábamos la masa. Y como los kilómetros por hora aparecen a los dos lados de la ecuación, no hace falta pasar a metros por segundo: el resultado sale en kilómetros por hora.`]
+});
+
+S({title:'La ecuación en x y el veredicto',
+html:`
+${Q(90,180,'2m v_i = 2m v_c cos30° + m · 70 cos40°',0,'s')}
+${Q(90,260,`v_i = v_c cos30° + ${fr('70','2')} cos40°`,1,'s')}
+${Q(90,350,'v_i = 45,0 · 0,866 + 35 · 0,766',2,'s')}
+${Q(90,420,'v_i = 38,97 + 26,81',2,'s')}
+${Q(90,500,'v_i = 65,8 [km/h]',3,'l box')}
+${Q(720,500,'65,8 > 60',4,'l acc')}
+${N(720,590,500,'Sí: el conductor iba <b>sobre el límite</b>.',4)}`,
+beats:[
+`Ahora el eje x. Antes, solo se movía la camioneta: 2 m por v i, que es lo que buscamos. Después: la camioneta aporta 2 m v c coseno 30, y el compacto, m por 70 coseno 40. Los dos hacia la derecha, positivos.`,
+`Dividimos todo por 2 m, para despejar v i. Queda: v i igual a v c coseno 30, más 70 dividido por 2, por coseno 40.`,
+`Reemplazamos: 45,0 por 0,866, más 35 por 0,766. El primer término da 38,97, y el segundo 26,81.`,
+`Sumamos: v i es 65,8 kilómetros por hora. Igual que la respuesta de la clase.`,
+`El veredicto: 65,8 es mayor que 60. El perito sí puede concluir que el conductor de la camioneta iba sobre el límite permitido, solo con los ángulos y la rapidez del compacto.`]
+});
+
+/* ===================== CH9 TRINEO ===================== */
+CH('El trineo de Luis y Karen','Clase 18 · Ejercicio 2','Capítulo nueve: el ejercicio dos de la clase 18. Es una explosión: todo parte en reposo y los cuerpos salen en direcciones distintas.');
+
+S({title:'El enunciado',
+html:`${svg(`
+${gnd(80,1200,540,0)}
+<g data-b="0"><rect x="560" y="490" width="170" height="36" rx="10" class="obj"/><path d="M545 540 Q 545 528 560 528 L 760 528" class="ln"/></g>
+${tx(645,470,'trineo',0,'sm')}
+<g data-b="1">${cball(470,430,30,'A','L')}${arr(470,430,300,332,'vel','5,00 m/s',null,[260,312])}${arc(470,430,70,150,180,'30°',null,102)}<line x1="380" y1="430" x2="470" y2="430" class="ln2 dashl"/></g>
+<g data-b="1">${cball(820,430,30,'B','K')}${arr(820,430,1000,295,'vel','5,54 m/s',null,[1040,275])}${arc(820,430,70,0,36.9,'36,9°',null,108)}<line x1="820" y1="430" x2="920" y2="430" class="ln2 dashl"/></g>
+${arr(645,600,760,600,'vel','v'+sb('t')+' = ?',3,[700,630])}`)}
+${N(90,190,1100,'Luis pesa <b>800,0 N</b>, Karen <b>600,0 N</b> y el trineo <b>1000,0 N</b>. Todo en reposo sobre hielo sin roce.',0)}`,
+beats:[
+`El ejercicio dos. Luis y Karen están sentados en un trineo en reposo, sobre hielo sin roce. Luis pesa 800 newton, Karen pesa 600 newton y el trineo pesa 1000 newton.`,
+`Ven una araña venenosa en el piso del trineo y saltan hacia afuera al mismo tiempo. Luis salta hacia la izquierda, a 5,00 metros por segundo, con un ángulo de 30 grados sobre la horizontal. Karen salta hacia la derecha, a 5,54 metros por segundo, con 36,9 grados sobre la horizontal.`,
+`Ojo: nos dan pesos, en newton, no masas. Para tener la masa hay que dividir el peso por g. Pero ya vas a ver que en este problema g se cancela.`,
+`Nos piden la velocidad del trineo después de los saltos, considerando que la horizontal es la dirección en que se mueve el trineo. Y la clase agrega una pregunta: ¿qué pasa con la componente vertical del momento?`]
+});
+
+S({title:'Conservación en el eje horizontal',
+html:`
+${Q(90,180,`m = ${fr('P','g')} :  m_L = 80 ,  m_K = 60 ,  m_t = 100 [kg]`,0,'s')}
+${Q(90,270,'v_{Lx} = −5,00 cos30° = −4,33 [m/s]',1,'s')}
+${Q(90,330,'v_{Kx} = +5,54 cos36,9° = +4,43 [m/s]',1,'s')}
+${Q(90,420,'0 = 80 (−4,33) + 60 (4,43) + 100 v_t',2,'s')}
+${Q(90,490,'0 = −346,4 + 265,8 + 100 v_t',3,'s')}
+${Q(90,580,`v_t = ${fr('80,6','100')} = +0,81 [m/s]`,4,'l box')}
+${N(800,580,420,'Hacia la <b>derecha</b>, del lado de Karen.',4)}`,
+beats:[
+`Primero las masas: peso dividido por g. Con g igual a 10: Luis tiene 80 kilos, Karen 60 y el trineo 100.`,
+`Ahora las componentes horizontales de las velocidades. Hacia la derecha es positivo. Luis va hacia la izquierda: menos 5 por coseno de 30, que da menos 4,33 metros por segundo. Karen va hacia la derecha: 5,54 por coseno de 36,9, que da más 4,43.`,
+`Al principio todo está quieto, así que el momento horizontal total es cero. Como el hielo no tiene roce, no hay fuerzas horizontales externas, y el momento horizontal se conserva. Después de los saltos: 80 por menos 4,33, más 60 por 4,43, más 100 por la velocidad del trineo, tiene que dar cero.`,
+`Multiplicamos: Luis aporta menos 346,4, y Karen más 265,8.`,
+`Juntamos: menos 80,6 más 100 v t igual a cero. Entonces v t es 80,6 dividido por 100: más 0,81 metros por segundo. Luis empujó más fuerte hacia la izquierda, así que el trineo se va hacia la derecha.`]
+});
+
+S({title:'¿Y la componente vertical?',
+html:`
+${Q(90,180,'{{antes:}} p_y = 0',0,'s')}
+${Q(90,250,'{{Luis:}} 80 · 5,00 sen30° = 200 [kg·m/s] {{hacia arriba}}',1,'s')}
+${Q(90,315,'{{Karen:}} 60 · 5,54 sen36,9° ≈ 200 [kg·m/s] {{hacia arriba}}',1,'s')}
+${Q(90,390,'{{después:}} p_y ≈ 400 [kg·m/s] ≠ 0',2,'s acc')}
+${N(90,470,1100,'Al saltar empujan el trineo hacia abajo y <b>el hielo empuja hacia arriba</b> con una normal mayor que los pesos. Es una fuerza <b>externa vertical</b>: por eso <i>p<sub>y</sub></i> no se conserva.',3)}
+${N(90,600,1100,'Nota: la diapositiva da como respuesta 6,12 m/s. Con los datos del enunciado la cuenta da 0,81 m/s. Conviene confirmarlo con tu ayudante.',4,'acc')}`,
+beats:[
+`Ahora la pregunta de la clase: ¿qué ocurre con la componente vertical del momento? Antes de saltar, nada se mueve en vertical: el momento vertical es cero.`,
+`Después del salto, los dos van hacia arriba. Luis: 80 por 5 por seno de 30, que da 200. Karen: 60 por 5,54 por seno de 36,9, que da unos 200 también.`,
+`El momento vertical después es unos 400 kilogramo metro por segundo hacia arriba. No es cero. El momento vertical no se conservó.`,
+`¿Por qué? Porque para saltar, Luis y Karen empujan el trineo hacia abajo, y el hielo responde empujando hacia arriba con una normal mucho más grande que los pesos. Esa normal es una fuerza externa, y es vertical. Por eso solo podemos conservar el momento horizontal. Es la idea dos del capítulo de conservación.`,
+`Una advertencia: en la diapositiva la respuesta aparece como 6,12 metros por segundo. Pero haciendo la cuenta con los datos del enunciado da 0,81 metros por segundo, y la revisamos dos veces. Puede ser un error de tipeo en la diapositiva. Te conviene confirmarlo con tu ayudante, pero el método es exactamente este.`]
+});
+/* ===================== CH10 AYUD P1 ===================== */
+CH('Carrito y paquete','Ayudantía 9 · Problema 1','Capítulo diez: la ayudantía 9. Problema uno, el carrito y el paquete. Junta proyectiles, momento y energía.');
+
+S({title:'El enunciado',
+html:`${svg(`
+${gnd(80,1200,620,0)}
+<g data-b="0"><path d="M120 310 L330 310 L120 152 Z" style="fill:#16161d;stroke:var(--line);stroke-width:2.5"/></g>
+${arc(330,310,62,143,180,'37°',0,92)}
+<g data-b="0"><g transform="translate(305,300) rotate(37)"><rect x="-26" y="-48" width="48" height="48" rx="4" style="fill:#101016;stroke:var(--A);stroke-width:3.5"/></g></g>
+${arr(330,320,430,395,'vel','3,0 m/s',0,[470,380])}
+<line x1="150" y1="318" x2="330" y2="318" class="ln2 dashl" data-b="0"/>${dim(200,318,200,560,'4,0 m',0,150,440)}
+<g data-b="1"><g id="cr1" transform="translate(960,600)">${cbox(-80,-72,160,60,'B','50 kg')}<circle cx="-50" cy="-12" r="12" class="obj"/><circle cx="50" cy="-12" r="12" class="obj"/></g></g>
+${arr(860,520,740,520,'vel','5,0 m/s',1,[800,490])}
+${tx(305,240,'15 kg',0,'sm')}`)}
+${LI(640,180,'a','Modelo vectorial del momento.',2,580)}
+${LI(640,250,'b','Velocidad final del sistema.',2,580)}
+${LI(640,320,'c','Rapidez del paquete al caer.',2,580)}
+${LI(640,390,'d','Energía: ¿qué tipo de choque?',2,580)}`,
+beats:[
+`Problema uno de la ayudantía 9. En un centro de distribución, un carrito abierto de 50 kilos rueda hacia la izquierda a 5,0 metros por segundo. El roce entre el carrito y el piso es despreciable.`,
+`Un paquete de 15 kilos baja deslizándose por una rampa inclinada 37 grados sobre la horizontal, y sale proyectado a 3,0 metros por segundo. Por el dibujo, la rampa baja hacia la derecha, así que el paquete sale hacia abajo y hacia la derecha. El extremo de la rampa está 4,0 metros sobre el fondo del carrito. El paquete cae dentro del carrito y siguen juntos.`,
+`Hay cuatro preguntas: a, modelar vectorialmente la conservación del momento. b, la velocidad final del carrito con el paquete. c, la rapidez del paquete justo antes de caer. Y d, comparar la energía antes y después, y decir qué tipo de choque es. Vamos a resolver c antes que b, porque el orden natural del problema es ese.`],
+});
+
+S({title:'Paso 1: la velocidad del paquete al salir',
+html:`${svg(`
+<g data-b="0">${arr(140,430,470,430,'dim','')}${arr(140,430,140,300,'dim','')}${tx(492,430,'x',null,'lab')}${tx(140,280,'y',null,'lab')}</g>
+${arr(140,430,380,610,'vel','3,0 m/s',0,[410,630])}
+${arc(140,430,80,-37,0,'37°',0,110)}
+<g data-b="1"><line x1="380" y1="430" x2="380" y2="610" class="ln2 dashl"/>${arr(140,430,380,430,'vel','',null,null,'opacity:.75')}${arr(140,430,140,610,'vel','',null,null,'opacity:.75')}${tx(260,405,'v'+sb('x'),null,'lab')}${tx(100,530,'v'+sb('y'),null,'lab')}</g>`)}
+${N(620,190,580,'Usamos <b>cos 37° ≈ 0,8</b> y <b>sen 37° ≈ 0,6</b>.',1)}
+${Q(620,270,'v_x = 3,0 · cos37° = +2,4 [m/s]',2,'s')}
+${Q(620,340,'v_{y0} = −3,0 · sen37° = −1,8 [m/s]',3,'s')}
+${N(620,430,580,'Mientras cae es un <b>proyectil</b>: <i>v<sub>x</sub></i> no cambia y <i>v<sub>y</sub></i> crece hacia abajo.',4)}`,
+beats:[
+`Primero descomponemos la velocidad con que el paquete sale de la rampa: 3,0 metros por segundo, apuntando 37 grados bajo la horizontal, hacia la derecha.`,
+`Usamos los valores típicos de 37 grados: coseno de 37 es más o menos 0,8, y seno de 37 es más o menos 0,6. Es el triángulo de lados 3, 4 y 5.`,
+`Componente horizontal: 3,0 por coseno de 37, que da 2,4 metros por segundo, hacia la derecha, positiva.`,
+`Componente vertical: 3,0 por seno de 37, que da 1,8, pero hacia abajo, así que es menos 1,8 metros por segundo.`,
+`Mientras cae los 4 metros, el paquete es un proyectil. Solo actúa el peso, que es vertical. Así que la componente horizontal se mantiene en 2,4 todo el tiempo, y la vertical va creciendo hacia abajo.`]
+});
+
+S({title:'c) Rapidez justo antes de caer',
+html:`
+${Q(90,180,'v_x = 2,4 [m/s]  {{(no cambia)}}',0,'s')}
+${Q(90,250,'v_y^2 = v_{y0}^2 + 2 g Δy = 1,8^2 + 2 · 10 · 4,0',1,'s')}
+${Q(90,320,'v_y^2 = 3,24 + 80 = 83,24  ⇒  v_y = −9,12 [m/s]',1,'s')}
+${Q(90,400,`v = ${rt('2,4^2 + 9,12^2')} = ${rt('89')} = 9,43 [m/s]`,2,'l box')}
+${N(90,520,520,'<b>Otra forma, con energía:</b>',3)}
+${Q(90,580,`${fr('1','2')} m v^2 = ${fr('1','2')} m · 3^2 + m g · 4  ⇒  v^2 = 9 + 80 = 89`,3,'s')}`,
+beats:[
+`Pregunta c. Justo antes de caer en el carrito, la componente horizontal sigue siendo 2,4 metros por segundo.`,
+`Para la vertical usamos la ecuación de cinemática sin tiempo: v y al cuadrado es v y inicial al cuadrado, más 2 g por la distancia que baja. 1,8 al cuadrado es 3,24, y 2 por 10 por 4 es 80. Total 83,24. La raíz da 9,12, hacia abajo.`,
+`La rapidez es el tamaño del vector: raíz de 2,4 al cuadrado más 9,12 al cuadrado. Eso es raíz de 89, que da 9,43 metros por segundo.`,
+`Hay otra forma más corta, con energía, porque durante la caída solo actúa el peso. La energía cinética abajo es la de arriba más la potencial que pierde: un medio m v al cuadrado, igual a un medio m por 3 al cuadrado, más m g por 4. Las m se cancelan, multiplicamos por 2, y v al cuadrado es 9 más 80, 89. El mismo resultado.`]
+});
+
+S({title:'a) El modelo vectorial',
+html:`${svg(`
+${ttl(320,190,'JUSTO ANTES',0)}
+${cbox(160,300,46,46,'A','',0)}${arr(206,323,296,323,'vel','2,4',0,[250,300])}${arr(183,346,183,440,'vel','9,12',0,[230,420])}
+${cbox(380,380,170,60,'B','',0)}${arr(380,410,290,410,'vel','5,0',0,[330,440])}
+${ttl(320,500,'JUSTO DESPUÉS',1)}
+${cbox(220,540,190,70,'C','65 kg',1)}${arr(220,575,120,575,'vel','V',1,[100,575])}`)}
+${Q(640,190,`m_p ${vc('v')}_p + m_c ${vc('v')}_c = (m_p + m_c) ${vc('V')}`,2,'s')}
+${Q(640,270,'{{x:}} m_p v_{px} + m_c v_{cx} = (m_p + m_c) V_x',3,'xs')}
+${N(640,340,560,'<b>Solo en x.</b> En y, el piso del carrito frena al paquete: aparece una normal externa enorme desde el suelo.',4)}`,
+beats:[
+`Pregunta a, el modelo vectorial. Justo antes del choque, el paquete va con velocidad 2,4 hacia la derecha y 9,12 hacia abajo. Y el carrito va a 5,0 hacia la izquierda.`,
+`Justo después, el paquete está dentro del carrito y se mueven juntos, con una masa total de 65 kilos y una velocidad V.`,
+`La ecuación vectorial: m del paquete por su velocidad, más m del carrito por su velocidad, igual a la masa total por V. Es un choque perfectamente inelástico, porque quedan juntos.`,
+`Pero ojo: esa ecuación solo se cumple en la componente x. En x no hay fuerzas externas, porque el roce con el piso es despreciable. Y queda: m p v p x más m c v c x, igual a la masa total por V x.`,
+`En y no se conserva. El paquete venía bajando a 9 metros por segundo y se detiene en vertical de golpe. Lo frena el fondo del carrito, que a su vez es empujado por el suelo con una normal enorme. Esa normal es externa. Por eso solo usamos x.`]
+});
+
+S({title:'b) La velocidad final',
+html:`
+${Q(90,190,'15 · (+2,4) + 50 · (−5,0) = 65 V',0,'l')}
+${Q(90,300,'36 − 250 = 65 V',1,'l')}
+${Q(90,400,`V = ${fr('−214','65')} = −3,29 [m/s]`,2,'l box')}
+${N(90,530,1000,'Signo menos: el carrito con el paquete sigue hacia la <b>izquierda</b>, a 3,29 m/s. El paquete lo frenó.',3)}`,
+beats:[
+`Pregunta b. Reemplazamos en la ecuación del eje x, con la derecha positiva. El paquete: 15 por más 2,4. El carrito: 50 por menos 5,0, porque va a la izquierda. Igual a 65 por V.`,
+`Multiplicamos: 15 por 2,4 es 36. 50 por menos 5 es menos 250. A la izquierda queda 36 menos 250, que es menos 214.`,
+`Dividimos por 65: V es menos 3,29 metros por segundo.`,
+`El signo menos dice que el carrito, ahora con el paquete adentro, sigue moviéndose hacia la izquierda, pero más lento: a 3,29 en vez de 5. Tiene sentido: el paquete venía hacia la derecha y además agregó masa, así que frenó al carrito.`]
+});
+
+S({title:'d) Energía y tipo de choque',
+html:`
+${Q(90,180,`K_{antes} = ${fr('1','2')} · 15 · 89 + ${fr('1','2')} · 50 · 5^2`,0,'s')}
+${Q(90,260,'K_{antes} = 667,5 + 625 = 1 292,5 [J]',1,'s')}
+${Q(90,350,`K_{después} = ${fr('1','2')} · 65 · 3,29^2 ≈ 352 [J]`,2,'s')}
+${Q(90,450,'K_{después} < K_{antes}',3,'l')}
+${P(90,540,'Perfectamente inelástico','K',3)}
+${N(560,540,640,'Quedan juntos y se pierden unos <b>940 J</b>, cerca del 73 %.',3)}
+${N(560,200,640,'Ojo: para el paquete se usa <b>v² = 89</b>, su rapidez total, no solo la componente x.',4)}`,
+beats:[
+`Pregunta d, la energía. Antes del choque: el paquete tiene un medio por 15 por su rapidez al cuadrado, que es 89. Y el carrito, un medio por 50 por 5 al cuadrado.`,
+`El paquete aporta 667,5 joule y el carrito 625. Total antes: 1292,5 joule.`,
+`Después del choque: un medio por 65 por 3,29 al cuadrado. Eso da unos 352 joule.`,
+`La energía después es mucho menor que antes. Como además quedaron juntos, el choque es perfectamente inelástico. Se perdieron unos 940 joule, cerca del 73 por ciento. Se fueron en el golpe, el ruido y en deformar el paquete.`,
+`Un cuidado: para la energía del paquete se usa su rapidez total, 9,43 al cuadrado, que es 89. No solo la componente x. La energía cinética no tiene componentes. En cambio, para el momento solo usamos la componente x. No los confundas.`]
+});
+
+/* ===================== CH11 AYUD P2 ===================== */
+CH('Bloque y rizo','Ayudantía 9 · Problema 2','Capítulo once: el problema dos de la ayudantía. Junta un choque con el rizo vertical del certamen 2.');
+
+S({title:'El enunciado',
+html:`${svg(`
+${gnd(80,1200,600,0)}
+${cir(330,450,150,0)}
+${dot(330,450,0,4)}${dim(330,450,330,300,'R',0,352,375)}
+<g data-b="0">${cbox(760,560,44,40,'B','m₂')}</g>
+<g id="rz1">${cbox(-22,-40,44,40,'A','m₁')}</g>
+${darr('rz1v','vel','v'+sb('0'),0)}`)}
+${N(640,190,560,'m₁ llega con <b>v₀</b> y choca con m₂ en reposo. Después del choque <b>m₁ queda en reposo</b>. m₂ entra a un rizo de radio <b>R</b>, todo sin roce.',0)}
+${LI(640,340,'a','Modele el choque.',1,560)}
+${LI(640,400,'b','Energía en el rizo: rapidez arriba.',1,560)}
+${LI(640,460,'c','Razón de masas para dar la vuelta.',1,560)}`,
+beats:[
+`Problema dos. Un bloque de masa m 1 se mueve sobre una superficie horizontal sin roce, con rapidez v cero. Más adelante hay un bloque de masa m 2 en reposo. m 1 choca con m 2, y después del choque m 1 queda en reposo, mientras m 2 sale y entra a un rizo vertical de radio R, sin roce.`,
+`Preguntas: a, modelar el choque con conservación del momento. b, hacer los gráficos de energía del bloque 2 entre que entra al rizo y pasa por el punto más alto, y encontrar la rapidez arriba. c, la razón entre las masas para que el bloque 2 complete al menos una vuelta.`],
+loop(st,r){const P=5,c=st%P;const x=c<2?1126-150*c:826;setT(r,'rz1',x,600);const v=r.querySelector('#rz1v');if(v)v.style.opacity=c<2?1:0;setArr(r,'rz1v',x,520,x-80,520)}
+});
+
+S({title:'a) El choque',
+html:`
+${Q(90,180,`m_1 ${vc('v')}_0 + m_2 ${vc('0')} = m_1 ${vc('0')} + m_2 ${vc('v')}_2`,0,'s')}
+${N(90,250,1100,'Tomamos el sentido del movimiento como positivo (hacia el rizo).',0)}
+${Q(90,330,'m_1 v_0 = m_2 v_2',1,'l')}
+${Q(90,440,`v_2 = ${fr('m_1','m_2')} v_0`,2,'xl box')}
+${N(640,450,560,'Si m₁ es más chica que m₂, el bloque 2 sale <b>más lento</b> que v₀.',3)}`,
+beats:[
+`Pregunta a. Antes del choque: m 1 se mueve con v cero y m 2 está quieto. Después: m 1 queda quieto y m 2 sale con v 2. Tomamos como positivo el sentido del movimiento, hacia el rizo.`,
+`Conservación: m 1 v cero más cero, igual a cero más m 2 v 2. Todo el momento que tenía el bloque 1 pasó al bloque 2.`,
+`Despejamos: v 2 es m 1 sobre m 2, por v cero.`,
+`Fíjate: si m 1 es más chica que m 2, la razón es menor que uno, y el bloque 2 sale más lento que v cero.`]
+});
+
+S({title:'b) Energía en el rizo',
+html:`${svg(`
+${cir(250,440,140,0,'ln2')}${gnd(60,460,580,0)}
+${cbox(230,560,40,20,'B','',0)}${tx(250,620,'abajo',0,'sm')}
+${cbox(230,280,40,20,'B','',0)}${tx(250,250,'arriba',0,'sm')}
+${dim(430,580,430,300,'2R',0,470,440)}`)}
+${bars('bz1',560,190,'Abajo',1,'sm')}${bars('bz2',790,190,'Arriba',2,'sm')}
+${Q(560,470,`${fr('1','2')} m_2 v_2^2 = ${fr('1','2')} m_2 v_{arriba}^2 + m_2 g (2R)`,3,'s')}
+${Q(560,580,`v_{arriba} = ${rt('v_2^2 − 4 g R')}`,4,'l box')}`,
+beats:[
+`Pregunta b. El bloque 2 entra al rizo por abajo y sube hasta el punto más alto, que está a una altura de dos veces el radio, 2 R, porque el diámetro es 2 R.`,
+`Gráfico de energía abajo: ponemos el nivel cero en el suelo. El bloque solo tiene energía cinética, un medio m 2 v 2 al cuadrado. Barra morada llena, turquesa en cero. No hay resorte.`,
+`Arriba: el bloque todavía se mueve, así que le queda algo de energía cinética. Y ahora tiene energía potencial gravitatoria, m 2 g por 2 R. La barra total es la misma, porque sin roce la energía mecánica se conserva. Solo cambió cómo se reparte.`,
+`La ecuación: un medio m 2 v 2 al cuadrado, igual a un medio m 2 v arriba al cuadrado, más m 2 g 2 R. La m 2 se cancela.`,
+`Multiplicamos por 2 y despejamos: v arriba al cuadrado es v 2 al cuadrado menos 4 g R. Entonces v arriba es la raíz de v 2 al cuadrado menos 4 g R.`],
+on(j,r){setB(r,'bz1',j>=1?[.95,0,0]:[0,0,0],null,j>=1?'K = ½ m_2 v_2^2':'');setB(r,'bz2',j>=2?[.35,.6,0]:[0,0,0],null,j>=2?'U_g = m_2 g 2R':'')}
+});
+
+S({title:'La condición para dar la vuelta',
+html:`${svg(`
+${cir(260,430,150,0,'ln2')}${dot(260,430,0,4)}
+${cbox(240,262,40,20,'B','',0)}
+${arr(260,262,260,340,'peso','m g',1,[310,320])}
+${arr(240,262,240,330,'normal','N',1,[205,320])}
+${tx(260,215,'en el punto más alto',0,'sm')}${tx(260,460,'centro',0,'sm')}`)}
+${Q(560,200,`N + m g = m ${fr('v_{arriba}^2','R')}`,2,'l')}
+${N(560,320,640,'Justo al límite, el bloque <b>casi se despega</b>: N = 0.',3)}
+${Q(560,410,`m g = m ${fr('v_{arriba}^2','R')}  ⇒  v_{arriba}^2 = g R`,4,'s')}
+${Q(560,510,'v_{arriba}^2 ≥ g R',5,'l box')}`,
+beats:[
+`Para responder la c necesitamos saber cuándo un bloque logra dar la vuelta. Esto es dinámica circular, del certamen 2. Miramos el bloque en el punto más alto del rizo.`,
+`Diagrama de cuerpo libre arriba: el peso apunta hacia abajo. Y la normal del rizo también apunta hacia abajo, porque ahí el rizo está arriba del bloque, empujándolo hacia el centro. Las dos fuerzas apuntan hacia el centro.`,
+`Eje radial: la suma de fuerzas hacia el centro es m por v al cuadrado sobre R. N más m g, igual a m v arriba al cuadrado sobre R.`,
+`Si el bloque va justo con la rapidez mínima, está a punto de despegarse del rizo. Y despegarse significa normal igual a cero.`,
+`Con N igual a cero: m g igual a m v arriba al cuadrado sobre R. La m se cancela, y queda v arriba al cuadrado igual a g R. Esa es la rapidez mínima.`,
+`Entonces, para que complete la vuelta, la rapidez arriba al cuadrado tiene que ser mayor o igual que g R.`]
+});
+
+S({title:'c) La razón de masas',
+html:`
+${Q(90,180,'v_2^2 − 4 g R ≥ g R',0,'l')}
+${Q(90,270,`v_2^2 ≥ 5 g R  ⇒  v_2 ≥ ${rt('5 g R')}`,1,'l')}
+${Q(90,370,`${fr('m_1','m_2')} v_0 ≥ ${rt('5 g R')}`,2,'l')}
+${Q(90,490,`${fr('m_1','m_2')} ≥ ${fr(rt('5 g R'),'v_0')}`,3,'xl box')}
+${N(720,500,480,'Dato curioso: si el choque fuera elástico, que m₁ quede quieto exige <b>masas iguales</b>.',4)}`,
+beats:[
+`Juntamos todo. De la parte b, v arriba al cuadrado es v 2 al cuadrado menos 4 g R. Y tiene que ser mayor o igual que g R.`,
+`Pasamos el 4 g R sumando: v 2 al cuadrado mayor o igual que 5 g R. O sea, v 2 tiene que ser al menos la raíz de 5 g R.`,
+`Ahora usamos el choque, de la parte a: v 2 es m 1 sobre m 2 por v cero. Lo reemplazamos.`,
+`Despejamos la razón de masas: m 1 sobre m 2 tiene que ser mayor o igual a la raíz de 5 g R, dividida por v cero. Esa es la respuesta de la c.`,
+`Un dato curioso, para pensar: si además el choque fuera elástico, la fórmula que vimos dice que m 1 queda quieto solo si las masas son iguales. El enunciado no dice que sea elástico, así que la razón queda libre, y por eso te la preguntan.`]
+});
+
+/* ===================== CH12 AYUD P3 ===================== */
+CH('Bolas en 2D','Ayudantía 9 · Problema 3','Capítulo doce: el problema tres de la ayudantía. Un choque en dos dimensiones con vectores escritos en i y j. Es el tipo de problema más directo.');
+
+S({title:'El enunciado',
+html:`${svg(`
+${axesG(110,600,90,0)}
+${cball(330,470,40,'A','A',0)}${arr(330,470,430,420,'vel','(4, 2)',0,[470,400])}
+${cball(560,470,32,'B','B',0)}${arr(560,470,500,370,'vel','(−3, 5)',0,[490,345])}
+${tx(330,540,'3 kg',0,'sm')}${tx(560,540,'2 kg',0,'sm')}`)}
+${N(660,190,560,'<b>Después:</b> A se rompe en A₁ (2 kg) y A₂ (1 kg).',1)}
+${Q(660,260,`${vc('v')}_{A1} = (−2 î + 3 ĵ) [m/s]`,1,'s')}
+${Q(660,320,`${vc('v')}_B′ = (2 î + 4 ĵ) [m/s]`,1,'s')}
+${Q(660,380,`${vc('v')}_{A2} = ?`,1,'s acc')}
+${LI(660,450,'a','Modelo vectorial',2,560)}${LI(660,500,'b','Velocidad y rapidez de A₂',2,560)}${LI(660,550,'c','Impulso sobre B',2,560)}${LI(660,600,'d','Energía: ¿qué choque es?',2,560)}`,
+beats:[
+`Problema tres. Una bola de cristal A, de 3 kilos, se mueve con velocidad 4 i más 2 j metros por segundo. En ese instante la golpea una bola de acero B, de 2 kilos, que se mueve con velocidad menos 3 i más 5 j.`,
+`Con el choque, la bola A se rompe en dos fragmentos. El fragmento A 1, de 2 kilos, sale con velocidad menos 2 i más 3 j. La bola B sigue con velocidad 2 i más 4 j. El otro fragmento, A 2, es de 1 kilo, y su velocidad no la conocemos.`,
+`Nos piden: a, el modelo vectorial. b, la velocidad de A 2 y su rapidez. c, el impulso que recibió la bola B. d, comparar energías y decir el tipo de choque.`]
+});
+
+S({title:'a) Modelo y momento antes',
+html:`
+${Q(90,180,`m_A ${vc('v')}_A + m_B ${vc('v')}_B = m_{A1} ${vc('v')}_{A1} + m_{A2} ${vc('v')}_{A2} + m_B ${vc('v')}_B′`,0,'s')}
+${N(90,250,1100,'Ojo: después hay <b>tres</b> cuerpos. La masa se conserva: 3 = 2 + 1.',0)}
+${Q(90,330,`${vc('p')}_A = 3 (4, 2) = (12, 6)`,1,'s')}
+${Q(90,400,`${vc('p')}_B = 2 (−3, 5) = (−6, 10)`,2,'s')}
+${Q(90,480,`${vc('p')}_{total} = (12 − 6, 6 + 10) = (6, 16) [kg·m/s]`,3,'s box')}`,
+beats:[
+`Pregunta a, el modelo. Antes: m A por v A, más m B por v B. Después hay tres cuerpos: el fragmento A 1, el fragmento A 2 y la bola B. Momento antes igual a momento después.`,
+`Calculamos el momento de cada bola antes. Para multiplicar un número por un vector, multiplicas cada componente. A: 3 por 4 es 12, y 3 por 2 es 6. Momento de A: 12 i más 6 j.`,
+`B: 2 por menos 3 es menos 6, y 2 por 5 es 10. Momento de B: menos 6 i más 10 j.`,
+`Sumamos componente por componente. En x: 12 menos 6, 6. En y: 6 más 10, 16. El momento total antes es 6 i más 16 j kilogramo metro por segundo.`]
+});
+
+S({title:'b) La velocidad del fragmento A₂',
+html:`
+${Q(90,180,`${vc('p')}_{A1} = 2 (−2, 3) = (−4, 6)`,0,'s')}
+${Q(90,245,`${vc('p')}_B′ = 2 (2, 4) = (4, 8)`,0,'s')}
+${Q(90,325,`${vc('p')}_{A2} = (6, 16) − (−4, 6) − (4, 8)`,1,'s')}
+${Q(90,390,`${vc('p')}_{A2} = (6 + 4 − 4 ,  16 − 6 − 8) = (6, 2)`,2,'s')}
+${Q(90,470,`${vc('v')}_{A2} = ${fr('(6, 2)','1')} = (6 î + 2 ĵ) [m/s]`,3,'s box')}
+${Q(90,570,`|v_{A2}| = ${rt('6^2 + 2^2')} = ${rt('40')} ≈ 6,32 [m/s]`,4,'s box')}`,
+beats:[
+`Pregunta b. Calculamos los momentos que sí conocemos después. A 1: 2 por menos 2 es menos 4, y 2 por 3 es 6. B después: 2 por 2 es 4, y 2 por 4 es 8.`,
+`El momento de A 2 es lo que falta para completar el total: el total, 6 coma 16, menos el de A 1, menos el de B después.`,
+`Componente x: 6, menos menos 4, que es más 4, menos 4. Da 6. Componente y: 16 menos 6 menos 8. Da 2. El momento de A 2 es 6 i más 2 j.`,
+`Para la velocidad, dividimos por su masa, que es 1 kilo. La velocidad de A 2 es 6 i más 2 j metros por segundo.`,
+`Y la rapidez es el tamaño del vector: raíz de 6 al cuadrado más 2 al cuadrado. Raíz de 36 más 4, raíz de 40, más o menos 6,32 metros por segundo.`]
+});
+
+S({title:'c) El impulso sobre la bola B',
+html:`
+${Q(90,180,`${vc('I')}_B = ${vc('p')}_B′ − ${vc('p')}_B`,0,'l')}
+${Q(90,290,`${vc('I')}_B = (4, 8) − (−6, 10) = (10, −2)`,1,'l')}
+${Q(90,400,`${vc('I')}_B = (10 î − 2 ĵ) [N·s]`,2,'l box')}
+${Q(90,520,`|I_B| = ${rt('100 + 4')} ≈ 10,2 [N·s]`,3,'s')}
+${N(720,520,480,'Los fragmentos de A reciben el impulso opuesto: (−10, 2).',3)}`,
+beats:[
+`Pregunta c. El impulso sobre B es su cambio de momento: el momento después menos el momento antes.`,
+`Después, 4 coma 8. Antes, menos 6 coma 10. Restamos por componentes. En x: 4 menos menos 6, que es 4 más 6, 10. En y: 8 menos 10, menos 2.`,
+`El impulso sobre B es 10 i menos 2 j newton segundo.`,
+`Su tamaño es raíz de 100 más 4, unos 10,2 newton segundo. Y por la tercera ley, la bola A, sumando sus dos fragmentos, recibió el impulso opuesto: menos 10 i más 2 j.`]
+});
+
+S({title:'d) Energía y tipo de choque',
+html:`
+${Q(90,180,`K_A = ${fr('1','2')} · 3 · (4^2 + 2^2) = 30 [J]`,0,'xs')}
+${Q(90,240,`K_B = ${fr('1','2')} · 2 · (3^2 + 5^2) = 34 [J]`,0,'xs')}
+${Q(90,300,'K_{antes} = 64 [J]',0,'s box')}
+${Q(640,180,`K_{A1} = ${fr('1','2')} · 2 · (2^2 + 3^2) = 13 [J]`,1,'xs')}
+${Q(640,240,`K_{A2} = ${fr('1','2')} · 1 · (6^2 + 2^2) = 20 [J]`,1,'xs')}
+${Q(640,300,`K_B′ = ${fr('1','2')} · 2 · (2^2 + 4^2) = 20 [J]`,1,'xs')}
+${Q(640,360,'K_{después} = 53 [J]',1,'s box')}
+${Q(90,480,'64 > 53  ⇒  {{inelástico}}',2,'l')}
+${N(90,590,1100,'Se perdieron <b>11 J</b>, en romper el cristal. No es perfectamente inelástico: no quedan pegados.',3)}`,
+beats:[
+`Pregunta d. La energía cinética antes. Recuerda: v al cuadrado es la componente x al cuadrado más la componente y al cuadrado. A: un medio por 3 por, 16 más 4, que es 20. Da 30 joule. B: un medio por 2 por, 9 más 25, que es 34. Da 34 joule. Total antes: 64 joule.`,
+`Después. A 1: un medio por 2 por, 4 más 9, 13 joule. A 2: un medio por 1 por, 36 más 4, 20 joule. B: un medio por 2 por, 4 más 16, 20 joule. Total después: 53 joule.`,
+`64 es mayor que 53: la energía cinética disminuyó. El choque es inelástico.`,
+`Se perdieron 11 joule, que se gastaron en romper la bola de cristal. Y no es perfectamente inelástico, porque los cuerpos no quedan pegados: salen por separado.`]
+});
+
+/* ===================== CIERRE ===================== */
+CH('Resumen final','Todo el control','Capítulo final: las fórmulas, la receta y los errores que más puntos cuestan. Guárdate esto para el viernes.');
+
+S({title:'Todas las fórmulas del control',
+html:`
+${Q(90,180,'p = m v',0,'l')}${N(380,190,300,'vector, kg·m/s',0)}
+${Q(90,270,'I = ΣF Δt = Δp = p_f − p_i',1,'s')}${N(700,275,500,'área bajo F–t, N·s',1)}
+${Q(90,350,'ΣF_{ext} = 0  ⇒  p_{antes} = p_{después}',2,'s')}
+${Q(90,430,'{{en 2D:}}  Σp_x {{y}} Σp_y {{por separado}}',3,'s')}
+${Q(90,510,'K = ½ m v^2',4,'s')}${N(420,515,780,'elástico: K igual · inelástico: K cambia · pegados: perfectamente inelástico',4)}
+${Q(90,600,`v_1 = ${fr('m_1 + m_2','m_1')} ${rt('2 g h')}`,5,'s')}${N(560,605,640,'péndulo balístico: momento, después energía',5)}`,
+beats:[
+`Para cerrar, todas las fórmulas del control en una sola pantalla. El momento lineal es masa por velocidad. Es un vector, y se mide en kilogramo metro por segundo.`,
+`El impulso es la fuerza neta por el tiempo, que es el área bajo el gráfico de fuerza contra tiempo. Y es igual al cambio de momento: final menos inicial.`,
+`Si la fuerza externa neta es cero, el momento total se conserva: momento antes igual a momento después.`,
+`En dos dimensiones, se conserva cada componente por separado. La suma en x antes igual a la suma en x después, y lo mismo en y.`,
+`La energía cinética, un medio m v al cuadrado, sirve para clasificar el choque. Si es igual antes y después, elástico. Si cambia, inelástico. Si quedan pegados, perfectamente inelástico.`,
+`Y el péndulo balístico: la rapidez de la bala es la masa total sobre la masa de la bala, por la raíz de 2 g h. Primero momento, después energía.`]
+});
+
+S({title:'La receta para cualquier choque',
+html:`
+${LI(90,185,1,'<b>Dos dibujos:</b> justo antes y justo después.',0)}
+${LI(90,255,2,'<b>Ejes y sentido positivo</b>, escritos en la hoja.',1)}
+${LI(90,325,3,'<b>¿Qué se conserva?</b> ¿En qué eje no hay fuerza externa?',2)}
+${LI(90,395,4,'<b>p<sub>antes</sub> = p<sub>después</sub></b>, una ecuación por eje.',3)}
+${LI(90,465,5,'<b>¿Hay otra etapa?</b> Rampa, columpio o caída: <b>energía</b>.',4)}
+${LI(90,535,6,'<b>¿Tipo de choque?</b> Compara <i>K</i>.',5)}
+${LI(90,605,7,'<b>Chequea</b> signos y que el resultado tenga sentido.',6)}`,
+beats:[
+`La receta para cualquier problema de choques. Uno: haz dos dibujos, justo antes y justo después del choque.`,
+`Dos: elige los ejes y el sentido positivo, y escríbelos en la hoja.`,
+`Tres: pregúntate qué se conserva. ¿En qué eje no hay fuerzas externas? Ese es el eje donde puedes igualar momentos.`,
+`Cuatro: iguala el momento antes con el momento después. Una ecuación por cada eje.`,
+`Cinco: revisa si hay otra etapa antes o después del choque, como una rampa, un columpio, una caída o un rizo. Esa parte se resuelve con energía o con cinemática.`,
+`Seis: si te preguntan el tipo de choque, compara la energía cinética antes y después.`,
+`Y siete: chequea los signos, y que el resultado tenga sentido físico.`]
+});
+
+S({title:'Errores que cuestan puntos',
+html:`
+${LI(90,180,'✕','Restar <b>tamaños</b> en un rebote: las velocidades opuestas llevan <b>signos opuestos</b>.',0)}
+${LI(90,250,'✕','Igualar <b>energía</b> en un choque inelástico. En el choque se iguala <b>momento</b>.',1)}
+${LI(90,320,'✕','Conservar <i>p<sub>y</sub></i> cuando hay una <b>normal</b> que frena o empuja (trineo, carrito).',2)}
+${LI(90,390,'✕','Olvidar la energía de un cuerpo que también se mueve (la <b>cuña</b>).',3)}
+${LI(90,460,'✕','Ponerle <b>signo</b> a la energía cinética o calcularla con una sola componente.',4)}
+${LI(90,530,'✕','Usar <b>pesos</b> o <b>gramos</b> como si fueran kilos.',5)}
+${LI(90,600,'✕','Olvidar que el impulso es un <b>cambio</b>: final <b>menos</b> inicial.',6)}`,
+beats:[
+`Y los errores que más puntos cuestan. Uno: restar los tamaños de las velocidades cuando algo rebota. Las velocidades opuestas llevan signos opuestos.`,
+`Dos: igualar energías en un choque inelástico. En el choque siempre se iguala el momento. La energía solo se iguala si te dicen que es elástico, o en las etapas sin choque.`,
+`Tres: conservar el momento vertical cuando hay una normal que frena o empuja, como en el trineo o en el carrito con el paquete.`,
+`Cuatro: olvidar la energía cinética de un cuerpo que también se mueve, como la cuña.`,
+`Cinco: ponerle signo a la energía cinética, o calcularla usando solo una componente de la velocidad. Siempre es un medio m por la rapidez al cuadrado.`,
+`Seis: usar pesos en newton o masas en gramos como si fueran kilos. Pasa todo a kilos antes de calcular.`,
+`Y siete: olvidar que el impulso es un cambio. Siempre es el momento final menos el momento inicial.`]
+});
+
+S({noHdr:true,title:'Cierre',
+html:`
+<div class="hk" style="left:90px;top:230px" data-b="0">FIS111 · Control 4</div>
+<div class="hero" style="left:84px;top:270px;font-size:110px" data-b="0" data-d=".15">Listo.</div>
+${N(90,420,760,'Vuelve a los capítulos que te costaron, pausa antes de cada solución e intenta resolver cada ejercicio solo. Mucho éxito el viernes.',0)}`,
+beats:[
+`Eso es todo. Si llegaste hasta aquí, ya viste todo lo que entra en el control 4. Vuelve a los capítulos que te costaron, pausa antes de cada solución, e intenta resolver cada ejercicio tú solo antes de mirar. Mucho éxito el viernes.`]
+});
+</script>
+<script>
+(function(){
+const $=s=>document.querySelector(s);
+const stage=$('#stage'),frame=$('#frame'),player=$('#player'),bar=$('#bar'),fill=bar.querySelector('.fill'),knob=bar.querySelector('.knob'),tip=$('#tip');
+const big=$('#big'),bPlay=$('#bPlay'),icPlay=$('#icPlay'),bVoice=$('#bVoice'),bSpeed=$('#bSpeed'),bFs=$('#bFs'),ctl=$('#ctl'),cap=$('#cap');
+const KEY='fis111-c4-pos-v1';
+let BE=[],TOTAL=0,g=0,t=0,playing=false,speed=1,voice=false,vDone=true,cur=null,curRoot=null,started=false,dragging=false,vTimer=null,sayTok=null,lastSave=0;
+const SPEEDS=[.75,1,1.25,1.5,2];
+
+/* timeline */
+SC.forEach(s=>{s.start=TOTAL;s.beats.forEach((txt,j)=>{const w=txt.split(/\s+/).length;const d=Math.max(4.5,w*.37+1.6);BE.push({s:s.i,j,txt,d,st:TOTAL});TOTAL+=d});s.end=TOTAL});
+CHS.forEach(c=>c.start=c.scenes[0].start);
+const fmt=s=>{s=Math.max(0,Math.floor(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=String(s%60).padStart(2,'0');return h?`${h}:${String(m).padStart(2,'0')}:${x}`:`${m}:${x}`};
+$('#dur').textContent=`${CHS.length-1} capítulos · ${BE.length} pasos · ${fmt(TOTAL)}`;
+CHS.forEach(c=>{if(c.start>0){const k=document.createElement('div');k.className='tick';k.style.left=(c.start/TOTAL*100)+'%';bar.appendChild(k)}});
+const chBox=$('#chs');
+CHS.forEach(c=>{const b=document.createElement('button');b.innerHTML=`<span class="n">${String(c.i).padStart(2,'0')}<br>${fmt(c.start)}</span><span><span class="t">${c.title}</span><span class="s">${c.sub}</span></span>`;b.onclick=()=>{go(idxAt(c.start+.01),0);if(!started)play();player.scrollIntoView({behavior:'smooth',block:'start'})};c.btn=b;chBox.appendChild(b)});
+function idxAt(T){let lo=0,hi=BE.length-1;while(lo<hi){const m=(lo+hi+1)>>1;if(BE[m].st<=T)lo=m;else hi=m-1}return lo}
+
+/* scenes */
+function hdr(sc){return `<div class="hdr"><div class="tag">${sc.ch.sub} · ${sc.ch.title}</div><h2>${sc.title}</h2></div>`}
+function card(c){return `<div class="card"><div class="cnum" data-b="0">${String(c.i).padStart(2,'0')}</div><div class="csub" data-b="0" data-d=".15">${c.sub}</div><div class="cttl" data-b="0" data-d=".3"${c.title.length>17?' style="font-size:62px"':''}>${c.title}</div>${svg(ln(146,520,1140,520,{b:0,d:.4},'ln','stroke:var(--acc);stroke-width:2'))}</div>`}
+function mount(sc){
+  const old=curRoot;if(old){old.classList.add('out');setTimeout(()=>old.remove(),1100)}
+  const r=document.createElement('div');r.className='scene pre';
+  r.innerHTML=sc.card?card(sc.ch):((sc.noHdr?'':hdr(sc))+sc.html);
+  stage.appendChild(r);r._j=-1;cur=sc;curRoot=r;r.getBoundingClientRect();
+  requestAnimationFrame(()=>r.classList.remove('pre'));
+}
+function apply(j,mnt){
+  const r=curRoot,sc=cur;let k=0;
+  r.querySelectorAll('[data-b]').forEach(el=>{const b=+el.dataset.b,want=b<=j,has=el.classList.contains('vis');
+    if(want&&!has){const d=(mnt?.35:.05)+(+el.dataset.d||0)+(b===j?Math.min(k++,8)*.12:0);el.style.transitionDelay=d.toFixed(2)+'s';el._p=true}
+    else if(!want){el._p=false;if(has){el.style.transitionDelay='0s';el.classList.remove('vis')}}});
+  r._j=j;
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{r.querySelectorAll('[data-b]').forEach(el=>{if(el._p&&+el.dataset.b<=r._j){el.classList.add('vis');el._p=false}})}));
+  r.querySelectorAll('[data-x]').forEach(el=>el.classList.toggle('gone',j>=+el.dataset.x));
+  r.querySelectorAll('[data-hl]').forEach(el=>el.classList.toggle('hl',el.dataset.hl.split(',').map(Number).includes(j)));
+  if(sc.on){try{sc.on(j,r,mnt)}catch(e){console.error(e)}}
+}
+function go(i,tt=0,o={}){
+  i=Math.max(0,Math.min(BE.length-1,i));const b=BE[i],sc=SC[b.s];let m=false;
+  if(cur!==sc){mount(sc);m=true}
+  const same=!m&&i===g&&curRoot._j===b.j;
+  g=i;t=tt;if(!same)apply(b.j,m);
+  $('#capTag').textContent=sc.ch.title+(sc.card?'':' · '+sc.title);
+  $('#capTx').textContent=b.txt;
+  $('#chName').textContent=sc.ch.title;
+  CHS.forEach(c=>c.btn.classList.toggle('on',c===sc.ch));
+  if(playing&&voice&&o.speak!==false)say(b.txt);
+  ui();
+}
+
+/* voice */
+let esVoice=null;const hasTTS='speechSynthesis' in window;
+function pickVoice(){if(!hasTTS)return;const vs=speechSynthesis.getVoices();esVoice=vs.find(v=>/^es[-_](CL|419|MX|US|AR|CO)/i.test(v.lang))||vs.find(v=>/^es[-_]ES/i.test(v.lang))||vs.find(v=>/^es/i.test(v.lang))||null}
+if(hasTTS){pickVoice();try{speechSynthesis.addEventListener('voiceschanged',pickVoice)}catch(e){}}else{bVoice.disabled=true;bVoice.title='Tu navegador no tiene síntesis de voz'}
+function say(txt){
+  if(!hasTTS){vDone=true;return}
+  try{speechSynthesis.cancel()}catch(e){}
+  vDone=false;const tok={};sayTok=tok;
+  const parts=(txt.match(/[^.!?]+[.!?]*/g)||[txt]).map(p=>p.trim()).filter(Boolean);
+  parts.forEach((p,k)=>{const u=new SpeechSynthesisUtterance(p);u.lang=esVoice?esVoice.lang:'es-ES';if(esVoice)u.voice=esVoice;u.rate=Math.min(2,speed*1.05);
+    if(k===parts.length-1)u.onend=()=>{if(sayTok===tok)vDone=true};u.onerror=()=>{if(sayTok===tok)vDone=true};
+    try{speechSynthesis.speak(u)}catch(e){vDone=true}});
+  clearTimeout(vTimer);vTimer=setTimeout(()=>{if(sayTok===tok)vDone=true},(BE[g].d/speed)*1600+3000);
+}
+function hush(){if(hasTTS){sayTok=null;try{speechSynthesis.cancel()}catch(e){}}vDone=true}
+
+/* transport */
+function play(){if(!started){started=true;big.hidden=true;$('#resume').hidden=true}
+  if(g===BE.length-1&&t>=BE[g].d-.05)go(0,0,{speak:false});
+  playing=true;if(voice)say(BE[g].txt);ui()}
+function pause(){playing=false;hush();ui()}
+function next(){go(g+1,0)}
+function prev(){if(t>2.5)go(g,0);else go(g-1,0)}
+function ui(){icPlay.setAttribute('d',playing?'M6 5h4v14H6zM14 5h4v14h-4z':'M7 4.5v15l12-7.5z');bPlay.setAttribute('aria-label',playing?'Pausar':'Reproducir')}
+bPlay.onclick=()=>playing?pause():play();big.onclick=play;
+$('#bNext').onclick=next;$('#bPrev').onclick=prev;
+bSpeed.onclick=()=>{speed=SPEEDS[(SPEEDS.indexOf(speed)+1)%SPEEDS.length];bSpeed.textContent=speed+'×';if(playing&&voice)say(BE[g].txt)};
+bVoice.onclick=()=>{voice=!voice;bVoice.setAttribute('aria-pressed',voice);bVoice.textContent='Voz: '+(voice?'sí':'no');if(voice){pickVoice();if(playing)say(BE[g].txt)}else hush()};
+bFs.onclick=()=>{if(document.fullscreenElement){document.exitFullscreen&&document.exitFullscreen().catch(()=>{})}else if(player.requestFullscreen){player.requestFullscreen().catch(()=>{})}};
+document.addEventListener('fullscreenchange',()=>setTimeout(fit,50));
+document.addEventListener('keydown',e=>{if(e.target.closest&&e.target.closest('input,textarea'))return;
+  if(e.code==='Space'||e.key==='k'){e.preventDefault();playing?pause():play()}
+  else if(e.key==='ArrowRight'){e.preventDefault();next()}
+  else if(e.key==='ArrowLeft'){e.preventDefault();prev()}
+  else if(e.key==='f'||e.key==='F'){bFs.click()}});
+
+/* seek bar */
+function TatX(x){const r=bar.getBoundingClientRect();return Math.max(0,Math.min(1,(x-r.left)/r.width))*TOTAL}
+function seekT(T){const i=idxAt(T);go(i,Math.min(T-BE[i].st,BE[i].d-.05),{speak:false})}
+bar.addEventListener('pointerdown',e=>{dragging=true;try{bar.setPointerCapture(e.pointerId)}catch(_){};seekT(TatX(e.clientX))});
+bar.addEventListener('pointermove',e=>{const T=TatX(e.clientX);if(dragging)seekT(T);let c=CHS[0];CHS.forEach(h=>{if(h.start<=T)c=h});tip.hidden=false;tip.textContent=fmt(T)+' · '+c.title;const r=bar.getBoundingClientRect();tip.style.left=Math.max(70,Math.min(r.width-70,e.clientX-r.left))+'px'});
+bar.addEventListener('pointerup',()=>{if(dragging){dragging=false;if(playing&&voice)say(BE[g].txt)}});
+bar.addEventListener('pointerleave',()=>{tip.hidden=true});
+
+/* resume */
+let saved=0;try{saved=+localStorage.getItem(KEY)||0}catch(e){}
+if(saved>20&&saved<TOTAL-10){$('#resume').hidden=false;$('#bRes').textContent='Continuar en '+fmt(saved);
+  $('#bRes').onclick=()=>{seekT(saved);play()};$('#bRes0').onclick=()=>{seekT(0);play()}}
+
+/* fit */
+function fit(){const fs=document.fullscreenElement===player;
+  if(fs){const W=window.innerWidth,H=window.innerHeight-ctl.offsetHeight-cap.offsetHeight;frame.style.width=Math.min(W,H*16/9)+'px'}else frame.style.width='';
+  stage.style.transform=`scale(${frame.clientWidth/1280})`}
+try{new ResizeObserver(fit).observe(frame)}catch(e){window.addEventListener('resize',fit)}
+fit();
+
+/* loop */
+let last=performance.now();
+function loop(now){const dt=Math.min(.1,(now-last)/1000);last=now;
+  if(playing&&!dragging){const b=BE[g];t+=dt*speed;
+    if(voice){if(vDone&&t>=1.2){if(g<BE.length-1)go(g+1,0);else pause()}else if(t>b.d)t=b.d-.001}
+    else if(t>=b.d){if(g<BE.length-1)go(g+1,t-b.d);else{t=b.d;pause()}}
+    if(now-lastSave>2500){lastSave=now;try{localStorage.setItem(KEY,String(BE[g].st+t))}catch(e){}}}
+  const b=BE[g],sc=SC[b.s];
+  if(sc.loop&&curRoot&&cur===sc){try{sc.loop(b.st-sc.start+t,curRoot,b.j,t)}catch(e){}}
+  const T=b.st+Math.min(t,b.d),p=T/TOTAL*100;fill.style.width=p+'%';knob.style.left=p+'%';
+  bar.setAttribute('aria-valuenow',Math.round(T));bar.setAttribute('aria-valuemax',Math.round(TOTAL));
+  $('#time').textContent=fmt(T)+' / '+fmt(TOTAL);
+  requestAnimationFrame(loop)}
+go(0,0,{speak:false});requestAnimationFrame(loop);
+})();
+</script>
+
+</body></html>
